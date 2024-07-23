@@ -1,0 +1,8 @@
+# requirements.txt
+
+ruff==0.3.7
+mypy==1.9.0
+black==24.4.0
+pytest==8.1.1
+pre-commit==3.7.0
+bytewax==0.20.0

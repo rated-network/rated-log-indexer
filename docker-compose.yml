@@ -1,0 +1,10 @@
+# docker-compose.yml
+
+version: '3.8'
+
+services:
+  indexer:
+    build: .
+    volumes:
+      - .:/indexer
+    command: tail -f /dev/null
