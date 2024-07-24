@@ -2,6 +2,8 @@
 
 FROM python:3.12.0-slim-bullseye
 
+ENV PYTHONPATH=/indexer/src
+
 ENV PYTHONUNBUFFERED=1
 
 RUN apt-get update \
@@ -16,4 +18,6 @@ WORKDIR /indexer
 COPY requirements.txt requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-CMD ["tail", "-f", "/dev/null"]
+COPY . .
+
+CMD ["python", "src/main.py"]

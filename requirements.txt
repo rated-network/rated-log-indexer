@@ -6,3 +6,8 @@ black==24.4.0
 pytest==8.1.1
 pre-commit==3.7.0
 bytewax==0.20.0
+httpx==0.27.0
+pydantic==2.8.2
+stamina==24.2.0
+structlog==24.2.0
+boto3==1.34.0
