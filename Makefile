@@ -27,5 +27,5 @@ ready: ## Get ready to rumble
 	@pre-commit install --hook-type commit-msg
 
 .PHONY: test
-test:  ## Run tests in Docker
+test:  ## Run tests in Docker, and optionally provide a path to a specific test file or directory
 	@docker compose run --rm -T --entrypoint pytest indexer $(path)

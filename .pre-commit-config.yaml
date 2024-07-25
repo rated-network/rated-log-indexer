@@ -27,3 +27,9 @@ repos:
       language: system
       pass_filenames: false
       stages: [ commit ]
+    - id: black
+      name: Run black formatting
+      entry: black src
+      language: system
+      pass_filenames: false
+      stages: [ commit ]
