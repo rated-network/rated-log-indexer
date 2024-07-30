@@ -4,9 +4,10 @@ from typing import Optional, List, Any
 from bytewax.inputs import StatefulSourcePartition, FixedPartitionedSource
 from pydantic import BaseModel, PositiveInt, StrictStr
 
-from clients.cloudwatch import cloudwatch_client
-from utils.logger import logger
-from utils.time_conversion import from_milliseconds, to_milliseconds
+from src.clients.cloudwatch import cloudwatch_client
+from src.indexers.offset_tracker.factory import get_offset_tracker
+from src.utils.logger import logger
+from src.utils.time_conversion import from_milliseconds, to_milliseconds
 
 DAY_INTERVAL = 86_400_000
 
@@ -17,14 +18,49 @@ class TimeRange(BaseModel):
 
 
 class CloudwatchPartition(StatefulSourcePartition[TimeRange, None]):
-    def __init__(self, start_from: PositiveInt):
+    def __init__(self, start_from: Optional[PositiveInt] = None) -> None:
         self.client = cloudwatch_client()
         self._next_awake = datetime.now(timezone.utc)
-        self.current_time = start_from
+
+        self.offset_tracker, self.config_start_from = get_offset_tracker()
+
+        self.current_time = self._get_current_offset(start_from)
         self.timestamp = from_milliseconds(self.current_time)
         logger.info(
-            f"Starting from Cloudwatch indexing from {(self.current_time, self.timestamp)}"
+            f"Starting Cloudwatch indexing from {(self.current_time, self.timestamp)}"
         )
+
+    def _get_current_offset(self, start_from: Optional[PositiveInt]) -> PositiveInt:
+        """
+        Determines the starting offset for Cloudwatch log indexing.
+
+        This method compares three potential starting points and selects the most recent (highest) one:
+        1. The current offset from the offset tracker
+        2. The start time specified in the configuration
+        3. An optional start time passed as an argument
+
+        The method ensures we always start indexing from the latest acceptable point,
+        preventing accidental processing of data from before the intended start time.
+
+        Parameters:
+        start_from (Optional[PositiveInt]): An optional starting timestamp in milliseconds.
+                                            If provided, it will be considered in determining
+                                            the starting offset.
+
+        Returns:
+        PositiveInt: The selected starting offset in milliseconds.
+
+        """
+        current_offset = self.offset_tracker.get_current_offset()
+        config_start_from_ms = to_milliseconds(self.config_start_from)
+        current_offset_ms = to_milliseconds(current_offset)
+        start_from_ms = start_from if start_from is not None else 0
+
+        highest_offset = max(current_offset_ms, config_start_from_ms, start_from_ms)
+        if highest_offset > current_offset_ms:
+            self.offset_tracker.update_offset(highest_offset)
+
+        return highest_offset
 
     def cloudwatch_time_range(self) -> Optional[TimeRange]:
         """
@@ -45,6 +81,8 @@ class CloudwatchPartition(StatefulSourcePartition[TimeRange, None]):
         start_time = self.current_time + 1
         self.current_time = head
 
+        self.offset_tracker.update_offset(self.current_time)
+
         logger.info(f"Fetching Cloudwatch logs from {start_time} to {head}")
 
         return TimeRange(start_time=start_time, end_time=head)
@@ -55,9 +93,7 @@ class CloudwatchPartition(StatefulSourcePartition[TimeRange, None]):
             self._next_awake += timedelta(seconds=24.0)
             return []
         if time_range.start_time - time_range.end_time == DAY_INTERVAL:
-            self._next_awake += timedelta(
-                seconds=2.0
-            )  # Processing historical logs from Cloudwatch, so we can fetch more frequently
+            self._next_awake += timedelta(seconds=2.0)
         else:
             self._next_awake += timedelta(seconds=24.0)
         return [time_range]
@@ -75,7 +111,7 @@ class CloudwatchSource(FixedPartitionedSource[TimeRange, None]):
     emits a safe range to fetch
     """
 
-    def __init__(self, start_from: PositiveInt):
+    def __init__(self, start_from: Optional[PositiveInt] = None):
         self.start_from = start_from
 
     def list_parts(self):

@@ -2,7 +2,7 @@ from typing import Optional
 
 from pydantic import StrictStr, BaseModel, PositiveInt
 
-from models.configs.indexer_config import get_indexer_config
+from src.models.configs.indexer_config import get_indexer_config
 
 
 class CloudwatchConfig(BaseModel):
