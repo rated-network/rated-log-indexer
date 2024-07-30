@@ -4,7 +4,7 @@ from boto3 import client  # type: ignore
 from botocore.config import Config  # type: ignore
 from pydantic import PositiveInt, StrictStr
 
-from models.configs.cloudwatch_config import CloudwatchConfig
+from models.configs.cloudwatch_config import CloudwatchConfig, get_cloudwatch_config
 from utils.logger import logger
 
 
@@ -68,3 +68,8 @@ class CloudwatchClient:
                 break
 
         return logs
+
+
+def cloudwatch_client() -> CloudwatchClient:
+    config = get_cloudwatch_config()
+    return CloudwatchClient(config)
