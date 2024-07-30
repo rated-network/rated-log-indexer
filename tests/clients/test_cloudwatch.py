@@ -2,8 +2,8 @@ import pytest
 from unittest.mock import MagicMock, patch
 from pydantic import PositiveInt
 
-from clients.cloudwatch import CloudwatchClient
-from models.configs.cloudwatch_config import CloudwatchConfig
+from src.clients.cloudwatch import CloudwatchClient
+from src.models.configs.cloudwatch_config import CloudwatchConfig
 
 
 class MockConfig(CloudwatchConfig):
@@ -23,7 +23,7 @@ def mock_client():
     return MagicMock()
 
 
-@patch("clients.cloudwatch.client")
+@patch("src.clients.cloudwatch.client")
 def test_query_logs_initial_query_success(mock_client):
     mock_response = {
         "events": [{"message": "log1"}, {"message": "log2"}],
@@ -50,7 +50,7 @@ def test_query_logs_initial_query_success(mock_client):
     )
 
 
-@patch("clients.cloudwatch.client")
+@patch("src.clients.cloudwatch.client")
 def test_query_logs_pagination(mock_client):
     mock_response1 = {
         "events": [{"message": "log1"}, {"message": "log2"}],
@@ -98,7 +98,7 @@ def test_query_logs_pagination(mock_client):
     )
 
 
-@patch("clients.cloudwatch.client", autospec=True)
+@patch("src.clients.cloudwatch.client", autospec=True)
 def test_query_logs_handles_exceptions(mock_client):
     mock_client.return_value.filter_log_events.side_effect = Exception("Test exception")
 
