@@ -14,6 +14,7 @@ class MockConfig(CloudwatchConfig):
             aws_secret_access_key="fake_secret_key",
             log_group="test-log-group",
             filter_pattern="{ $.level = 'error' }",
+            start_time=1625097600000,
         )
 
 
@@ -36,7 +37,7 @@ def test_query_logs_initial_query_success(mock_client):
     start_time = PositiveInt(1625097600000)  # example start time in milliseconds
     end_time = PositiveInt(1625184000000)  # example end time in milliseconds
 
-    logs = cloudwatch_client.query_logs(start_time, end_time)
+    logs = list(cloudwatch_client.query_logs(start_time, end_time))
 
     assert len(logs) == 2
     assert logs == [{"message": "log1"}, {"message": "log2"}]
@@ -70,7 +71,7 @@ def test_query_logs_pagination(mock_client):
     start_time = PositiveInt(1625097600000)  # example start time in milliseconds
     end_time = PositiveInt(1625184000000)  # example end time in milliseconds
 
-    logs = cloudwatch_client.query_logs(start_time, end_time)
+    logs = list(cloudwatch_client.query_logs(start_time, end_time))
 
     assert len(logs) == 4
     assert logs == [
@@ -97,7 +98,7 @@ def test_query_logs_pagination(mock_client):
     )
 
 
-@patch("clients.cloudwatch.client")
+@patch("clients.cloudwatch.client", autospec=True)
 def test_query_logs_handles_exceptions(mock_client):
     mock_client.return_value.filter_log_events.side_effect = Exception("Test exception")
 
@@ -108,4 +109,4 @@ def test_query_logs_handles_exceptions(mock_client):
     end_time = PositiveInt(1625184000000)  # example end time in milliseconds
 
     with pytest.raises(Exception, match="Test exception"):
-        cloudwatch_client.query_logs(start_time, end_time)
+        list(cloudwatch_client.query_logs(start_time, end_time))

@@ -1,4 +1,4 @@
-from typing import List, Any, Dict, Union
+from typing import Any, Dict, Union, Iterator
 
 from boto3 import client  # type: ignore
 from botocore.config import Config  # type: ignore
@@ -28,8 +28,8 @@ class CloudwatchClient:
         self,
         start_time: PositiveInt,
         end_time: PositiveInt,
-    ) -> List[Union[Dict[str, Any], StrictStr]]:
-        logs = []
+    ) -> Iterator[Union[Dict[str, Any], StrictStr]]:
+
         filter_pattern = self.config.filter_pattern
         params = {
             "logGroupName": self.config.log_group,
@@ -41,33 +41,27 @@ class CloudwatchClient:
         if filter_pattern:
             params["filterPattern"] = filter_pattern
 
-        try:
-            events_batch = self.client.filter_log_events(**params)
-            logs.extend(events_batch["events"])
-            logger.info(f"Fetched {len(logs)} logs from {self.config.log_group}")
-        except Exception as e:
-            logger.error(f"Failed first query for logs: {e}")
-            raise e
+        next_token = None
 
-        while len(events_batch["events"]) == self.limit:
-            next_token = events_batch.get("nextToken")
+        while True:
             if next_token:
-                try:
-                    events_batch = self.client.filter_log_events(
-                        **params, nextToken=next_token
-                    )
-                    logger.info(
-                        f"Fetched {len(events_batch['events'])} logs from {self.config.log_group}"
-                    )
-                    logs.extend(events_batch["events"])
-                    logger.info(f"Total logs fetched: {len(logs)}")
-                except Exception as e:
-                    logger.error(f"Failed to query logs: {e}")
-                    raise e
-            else:
-                break
+                params["nextToken"] = next_token
 
-        return logs
+            try:
+                events_batch = self.client.filter_log_events(**params)
+                logs = events_batch.get("events", [])
+                logger.info(f"Fetched {len(logs)} logs from {self.config.log_group}")
+                yield from logs
+
+                if len(logs) < self.limit:
+                    break
+
+                next_token = events_batch.get("nextToken")
+                if not next_token:
+                    break
+            except Exception as e:
+                logger.error(f"Failed to query logs: {e}")
+                raise e
 
 
 def cloudwatch_client() -> CloudwatchClient:
