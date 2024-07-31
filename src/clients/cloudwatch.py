@@ -4,14 +4,14 @@ from boto3 import client  # type: ignore
 from botocore.config import Config  # type: ignore
 from pydantic import PositiveInt, StrictStr
 
-from models.configs.cloudwatch_config import CloudwatchConfig, get_cloudwatch_config
-from utils.logger import logger
+from src.models.configs.cloudwatch_config import CloudwatchConfig, get_cloudwatch_config
+from src.utils.logger import logger
 
 
 class CloudwatchClient:
     def __init__(self, config: CloudwatchConfig, limit: PositiveInt = 10_000):
         self.config = config
-        self.client = client(
+        self.logs_client = client(
             "logs",
             config=Config(
                 region_name=config.region_name,
@@ -48,7 +48,7 @@ class CloudwatchClient:
                 params["nextToken"] = next_token
 
             try:
-                events_batch = self.client.filter_log_events(**params)
+                events_batch = self.logs_client.filter_log_events(**params)
                 logs = events_batch.get("events", [])
                 logger.info(f"Fetched {len(logs)} logs from {self.config.log_group}")
                 yield from logs

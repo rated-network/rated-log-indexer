@@ -3,7 +3,7 @@ from typing import Optional
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 
-from models.configs.postgres_config import PostgresConfig
+from src.models.configs.postgres_config import PostgresConfig
 
 
 class PostgresClient:
