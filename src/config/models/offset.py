@@ -1,6 +1,12 @@
 from enum import Enum
 
-from pydantic import BaseModel, root_validator, validator, StrictStr, StrictInt
+from pydantic import (
+    BaseModel,
+    StrictStr,
+    StrictInt,
+    model_validator,
+    field_validator,
+)
 from typing import Optional, Union
 from datetime import datetime
 
@@ -39,7 +45,7 @@ class OffsetYamlConfig(BaseModel):
     postgres: Optional[OffsetPostgresYamlConfig] = None
     redis: Optional[OffsetRedisYamlConfig] = None
 
-    @root_validator(pre=True)
+    @model_validator(mode="before")
     def validate_config_type(cls, values):
         offset_type = values.get("type")
         if offset_type == OffsetTypes.POSTGRES:
@@ -54,7 +60,7 @@ class OffsetYamlConfig(BaseModel):
             values["postgres"] = None
         return values
 
-    @root_validator(pre=True)
+    @model_validator(mode="before")
     def check_start_from_type_consistency(cls, values):
         start_from = values.get("start_from")
         start_from_type = values.get("start_from_type")
@@ -72,9 +78,9 @@ class OffsetYamlConfig(BaseModel):
 
         return values
 
-    @validator("start_from")
-    def validate_start_from(cls, v, values):
-        start_from_type = values.get("start_from_type")
+    @field_validator("start_from")
+    def validate_start_from(cls, v, info):
+        start_from_type = info.data.get("start_from_type")
         if start_from_type == StartFromTypes.BIGINT:
             if not isinstance(v, int):
                 raise ValueError(f"Invalid 'start_from' value for bigint type: {v}")
@@ -83,7 +89,7 @@ class OffsetYamlConfig(BaseModel):
                 raise ValueError(f"Invalid 'start_from' value for datetime type: {v}")
         return v
 
-    @validator("start_from_type")
+    @field_validator("start_from_type")
     def validate_start_from_type(cls, v):
         if v not in StartFromTypes:
             raise ValueError(f"Invalid 'start_from_type': {v}")
