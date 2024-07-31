@@ -1,7 +1,5 @@
-import asyncio
 from typing import Any, List
 import structlog
-import httpx
 from bytewax.outputs import DynamicSink, StatelessSinkPartition
 
 logger = structlog.get_logger(__name__)

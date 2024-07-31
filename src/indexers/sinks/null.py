@@ -15,5 +15,7 @@ class NullSink(DynamicSink[Any]):
     """Null sink that does nothing with the data. Useful for testing."""
 
     @override
-    def build(self, step_id: str, worker_index: int, worker_count: int) -> _NullSinkPartition:
+    def build(
+        self, step_id: str, worker_index: int, worker_count: int
+    ) -> _NullSinkPartition:
         return _NullSinkPartition()

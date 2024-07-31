@@ -24,13 +24,15 @@ class _HTTPSinkPartition(StatelessSinkPartition):
         self.endpoint = config.endpoint
         self.max_concurrent_requests = config.max_concurrent_requests
         self.client = httpx.AsyncClient()
-        logger.info(f"Worker {self.worker_index} initialized", http_endpoint=self.endpoint)
+        logger.info(
+            f"Worker {self.worker_index} initialized", http_endpoint=self.endpoint
+        )
 
     async def send_item(self, item: Any) -> None:
         try:
             response = await self.client.post(self.endpoint, json=item)
             response.raise_for_status()
-        except httpx.HTTPError as e:
+        except httpx.HTTPError:
             logger.error(f"Worker {self.worker_index} HTTP error", item=item)
             raise
 
@@ -43,7 +45,9 @@ class _HTTPSinkPartition(StatelessSinkPartition):
     def write_batch(self, items: List[Any]) -> None:
         try:
             asyncio.run(self.send_batch(items))
-            logger.info(f"Worker {self.worker_index} successfully sent batch to HTTP endpoint")
+            logger.info(
+                f"Worker {self.worker_index} successfully sent batch to HTTP endpoint"
+            )
         except Exception:
             logger.error(
                 f"Worker {self.worker_index} Failed to send batch to HTTP endpoint",
