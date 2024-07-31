@@ -57,7 +57,9 @@ def test_load_config_invalid_yaml():
 
 def test_get_config_invalid_input_type(valid_config_dict):
     invalid_config = valid_config_dict.copy()
-    invalid_config["input"]["type"] = "invalid_source"
+    invalid_config["input"] = {
+        "type": "invalid_source",
+    }
 
     with patch.object(ConfigurationManager, "load_config") as mock_load_config:
         with pytest.raises(ValueError) as exc_info:
@@ -65,8 +67,12 @@ def test_get_config_invalid_input_type(valid_config_dict):
             ConfigurationManager.get_config()
 
         error_message = str(exc_info.value)
+        print(error_message)
         assert "1 validation error for RatedIndexerYamlConfig" in error_message
-        assert "Input should be 'cloudwatch' or 'datadog'" in error_message
+        assert (
+            'Invalid input source found "invalid_source": please use one of'
+            in error_message
+        )
 
 
 def test_get_config_missing_input_config(valid_config_dict):
@@ -81,7 +87,8 @@ def test_get_config_missing_input_config(valid_config_dict):
             ConfigurationManager.get_config()
 
         error_message = str(exc_info.value)
+        print(error_message)
         assert (
-            'cloudwatch configuration is required when type is "cloudwatch"'
+            'Configuration for input source "cloudwatch" is not found. Please add input configuration for cloudwatch.'
             in error_message
         )

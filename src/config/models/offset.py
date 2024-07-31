@@ -1,7 +1,8 @@
+from enum import Enum
+
 from pydantic import BaseModel, root_validator, validator, StrictStr, StrictInt
 from typing import Optional, Union
 from datetime import datetime
-from typing_extensions import Literal
 
 
 class OffsetPostgresYamlConfig(BaseModel):
@@ -20,10 +21,20 @@ class OffsetRedisYamlConfig(BaseModel):
     db: StrictInt
 
 
+class StartFromTypes(str, Enum):
+    BIGINT = "bigint"
+    DATETIME = "datetime"
+
+
+class OffsetTypes(str, Enum):
+    POSTGRES = "postgres"
+    REDIS = "redis"
+
+
 class OffsetYamlConfig(BaseModel):
-    type: Literal["postgres", "redis"]
+    type: OffsetTypes
     start_from: Union[StrictInt, datetime]
-    start_from_type: Literal["bigint", "datetime"]
+    start_from_type: StartFromTypes
 
     postgres: Optional[OffsetPostgresYamlConfig] = None
     redis: Optional[OffsetRedisYamlConfig] = None
@@ -31,13 +42,13 @@ class OffsetYamlConfig(BaseModel):
     @root_validator(pre=True)
     def validate_config_type(cls, values):
         offset_type = values.get("type")
-        if offset_type == "postgres":
+        if offset_type == OffsetTypes.POSTGRES:
             if "postgres" not in values or not values["postgres"]:
                 raise ValueError(
                     'postgres configuration is required when type is "postgres"'
                 )
             values["redis"] = None
-        elif offset_type == "redis":
+        elif offset_type == OffsetTypes.REDIS:
             if "redis" not in values or not values["redis"]:
                 raise ValueError('redis configuration is required when type is "redis"')
             values["postgres"] = None
@@ -48,11 +59,13 @@ class OffsetYamlConfig(BaseModel):
         start_from = values.get("start_from")
         start_from_type = values.get("start_from_type")
 
-        if start_from_type == "bigint" and not isinstance(start_from, int):
+        if start_from_type == StartFromTypes.BIGINT and not isinstance(start_from, int):
             raise ValueError(
                 "'start_from' must be an integer when 'start_from_type' is 'bigint'"
             )
-        elif start_from_type == "datetime" and not isinstance(start_from, datetime):
+        elif start_from_type == StartFromTypes.DATETIME and not isinstance(
+            start_from, datetime
+        ):
             raise ValueError(
                 "'start_from' must be a datetime object when 'start_from_type' is 'datetime'"
             )
@@ -62,16 +75,16 @@ class OffsetYamlConfig(BaseModel):
     @validator("start_from")
     def validate_start_from(cls, v, values):
         start_from_type = values.get("start_from_type")
-        if start_from_type == "bigint":
+        if start_from_type == StartFromTypes.BIGINT:
             if not isinstance(v, int):
                 raise ValueError(f"Invalid 'start_from' value for bigint type: {v}")
-        elif start_from_type == "datetime":
+        elif start_from_type == StartFromTypes.DATETIME:
             if not isinstance(v, datetime):
                 raise ValueError(f"Invalid 'start_from' value for datetime type: {v}")
         return v
 
     @validator("start_from_type")
     def validate_start_from_type(cls, v):
-        if v not in ("bigint", "datetime", None):
+        if v not in StartFromTypes:
             raise ValueError(f"Invalid 'start_from_type': {v}")
         return v
