@@ -10,9 +10,12 @@ def valid_config_dict():
             "cloudwatch": {"region": "us-east-1", "log_group_name": "my-log-group"},
         },
         "output": {
-            "slaos_api_key": "your_slaos_api_key",
-            "ingestion_id": "your_ingestion_id",
-            "ingestion_key": "your_ingestion_key",
+            "type": "rated",
+            "rated": {
+                "slaos_api_key": "your_slaos_api_key",
+                "ingestion_id": "your_ingestion_id",
+                "ingestion_key": "your_ingestion_key",
+            },
         },
         "offset": {
             "type": "postgres",
