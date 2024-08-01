@@ -7,7 +7,7 @@ from src.indexers.sinks.console import build_console_sink
 
 
 def test_console_sink(test_events, capsys):
-    input_source = TestingSource(test_events)
+    input_source: TestingSource = TestingSource(test_events)
     console_sink = build_console_sink()
 
     flow_ = Dataflow(flow_id="test_console_sink")

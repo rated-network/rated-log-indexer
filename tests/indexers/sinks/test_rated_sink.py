@@ -14,7 +14,7 @@ def test_http_sink(test_events, httpx_mock: HTTPXMock):
     http_sink = build_http_sink(endpoint=endpoint, max_concurrent_requests=2)
 
     flow = Dataflow(flow_id="test_http_sink")
-    input_source = TestingSource(test_events)
+    input_source: TestingSource = TestingSource(test_events)
     (op.input("read", flow=flow, source=input_source).then(op.output, "out", http_sink))
     run_main(flow)
 

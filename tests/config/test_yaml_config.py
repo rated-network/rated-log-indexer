@@ -14,6 +14,11 @@ def test_load_config_valid(valid_config_yaml):
     with patch("builtins.open", mock_open(read_data=valid_config_yaml)):
         with patch.object(os.path, "exists", return_value=True):
             config = ConfigurationManager.load_config()
+
+            assert config.input.cloudwatch is not None
+            assert config.output.rated is not None
+            assert config.offset.postgres is not None
+
             assert isinstance(config, RatedIndexerYamlConfig)
             assert isinstance(config.input, InputYamlConfig)
             assert isinstance(config.output, OutputYamlConfig)

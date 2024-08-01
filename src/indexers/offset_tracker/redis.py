@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Union, cast
 from datetime import datetime
 
 from pydantic import StrictInt
@@ -15,13 +15,15 @@ class RedisOffsetTracker(OffsetTracker):
                 "Offset tracker type is not set to 'redis' in the configuration"
             )
 
+        assert self.config.redis is not None
+
         redis_config = RedisConfig(
             host=self.config.redis.host,
             port=self.config.redis.port,
             db=self.config.redis.db,
         )
         self.client = RedisClient(redis_config)
-        self.key = self.config.redis.key
+        self.key = cast(str, self.config.redis.key)
 
     def get_current_offset(self) -> Union[StrictInt, datetime]:
         value = self.client.get(self.key)
