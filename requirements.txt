@@ -11,3 +11,8 @@ structlog==24.2.0
 boto3==1.34.0
 sqlalchemy==2.0.31
 pytest-httpx==0.30.0
+psycopg2-binary==2.9.9
+redis==5.0.8
+types-PyYAML==6.0.12.20240724
+PyYAML==6.0.1
+botocore==1.34.147

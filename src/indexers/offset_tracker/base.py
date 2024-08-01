@@ -29,7 +29,7 @@ class OffsetTracker(ABC):
             current_offset = self.start_from
 
         if isinstance(current_offset, int):
-            end_point = current_offset + (
+            end_point: Union[int, datetime] = current_offset + (
                 max_window
                 if isinstance(max_window, int)
                 else int(max_window.total_seconds())
