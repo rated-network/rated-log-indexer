@@ -1,10 +1,10 @@
 from datetime import datetime
 from typing import Union, Tuple
 
-from config.config import ConfigurationManager
-from indexers.offset_tracker.base import OffsetTracker
-from indexers.offset_tracker.postgres import PostgresOffsetTracker
-from indexers.offset_tracker.redis import RedisOffsetTracker
+from src.config.manager import ConfigurationManager
+from src.indexers.offset_tracker.base import OffsetTracker
+from src.indexers.offset_tracker.postgres import PostgresOffsetTracker
+from src.indexers.offset_tracker.redis import RedisOffsetTracker
 
 
 def get_offset_tracker() -> Tuple[OffsetTracker, Union[int, datetime]]:

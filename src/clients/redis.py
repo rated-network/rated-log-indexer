@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Any
 
 from pydantic import BaseModel
 import redis
@@ -34,8 +34,14 @@ class RedisClient:
             self.client.close()
             self.client = None
 
-    def get(self, key: str) -> Optional[str]:
-        return self.client.get(key)
+    def get(self, key: str) -> Optional[Any]:
+        if self.client:
+            return self.client.get(key)
+        else:
+            return None
 
     def set(self, key: str, value: str) -> None:
-        self.client.set(key, value)
+        if self.client:
+            self.client.set(key, value)
+        else:
+            return None

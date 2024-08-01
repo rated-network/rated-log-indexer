@@ -3,8 +3,8 @@ from datetime import datetime
 from sqlalchemy import Table, Column, MetaData, Integer, DateTime, BigInteger
 from sqlalchemy.sql import select, update
 from .base import OffsetTracker
-from models.configs.postgres_config import PostgresConfig
-from src.clients.postgres import PostgresClient
+
+from src.clients.postgres import PostgresClient, PostgresConfig
 
 
 class PostgresOffsetTracker(OffsetTracker):
@@ -16,8 +16,13 @@ class PostgresOffsetTracker(OffsetTracker):
             )
 
         postgres_config = PostgresConfig(
-            DB_DSN=f"postgresql://{self.config.postgres.user}:{self.config.postgres.password}@{self.config.postgres.host}:{self.config.postgres.port}/{self.config.postgres.database}"
+            host=self.config.postgres.host,
+            port=self.config.postgres.port,
+            user=self.config.postgres.user,
+            database=self.config.postgres.database,
+            password=self.config.postgres.password,
         )
+
         self.client = PostgresClient(postgres_config)
         self.table_name = self.config.postgres.table_name
         self._ensure_table_exists()

@@ -52,8 +52,16 @@ class CloudwatchPartition(StatefulSourcePartition[TimeRange, None]):
 
         """
         current_offset = self.offset_tracker.get_current_offset()
-        config_start_from_ms = to_milliseconds(self.config_start_from)
-        current_offset_ms = to_milliseconds(current_offset)
+        config_start_from_ms = (
+            to_milliseconds(self.config_start_from)
+            if isinstance(self.config_start_from, datetime)
+            else self.config_start_from
+        )
+        current_offset_ms = (
+            to_milliseconds(current_offset)
+            if isinstance(current_offset, datetime)
+            else current_offset
+        )
         start_from_ms = start_from if start_from is not None else 0
 
         highest_offset = max(current_offset_ms, config_start_from_ms, start_from_ms)

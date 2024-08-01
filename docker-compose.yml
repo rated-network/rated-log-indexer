@@ -3,11 +3,42 @@
 version: '3.8'
 
 services:
+  db:
+    image: postgres:14.6
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: test_db
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U user -d test_db" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   indexer:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: rated-log-indexer
     environment:
       - PYTHONPATH=/indexer/src
     volumes:
       - .:/indexer
     command: ["python", "src/main.py"]
+
+  test:
+    build:
+      context: .
+      dockerfile: test.Dockerfile
+    container_name: test-rated-log-indexer
+    environment:
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - .:/indexer
+    depends_on:
+      db:
+        condition: service_healthy
+    entrypoint: ["tests"]
+    command: ["pytest"]

@@ -35,5 +35,7 @@ class RedisOffsetTracker(OffsetTracker):
 
     def update_offset(self, offset: Union[StrictInt, datetime]) -> None:
         if isinstance(offset, datetime):
-            offset = offset.isoformat()
-        self.client.set(self.key, str(offset))
+            converted_offset = offset.isoformat()
+            self.client.set(self.key, str(converted_offset))
+        else:
+            self.client.set(self.key, str(offset))
