@@ -17,6 +17,16 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:7.0-alpine
+    healthcheck:
+      test: [ 'CMD', 'redis-cli', '--raw', 'incr', 'ping' ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    ports:
+      - "6379:6379"
+
   indexer:
     build:
       context: .
@@ -39,6 +49,8 @@ services:
       - .:/indexer
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     entrypoint: ["tests"]
     command: ["pytest"]
