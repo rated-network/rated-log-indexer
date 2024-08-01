@@ -1,7 +1,9 @@
-from typing import Union
+from typing import Union, cast, Type
 from datetime import datetime
 from sqlalchemy import Table, Column, MetaData, Integer, DateTime, BigInteger
 from sqlalchemy.sql import select, update
+from sqlalchemy.sql.type_api import TypeEngine
+
 from .base import OffsetTracker
 
 from src.clients.postgres import PostgresClient, PostgresConfig
@@ -15,6 +17,8 @@ class PostgresOffsetTracker(OffsetTracker):
                 "Offset tracker type is not set to 'postgres' in the configuration"
             )
 
+        assert self.config.postgres is not None
+
         postgres_config = PostgresConfig(
             host=self.config.postgres.host,
             port=self.config.postgres.port,
@@ -24,11 +28,12 @@ class PostgresOffsetTracker(OffsetTracker):
         )
 
         self.client = PostgresClient(postgres_config)
-        self.table_name = self.config.postgres.table_name
+        self.table_name = cast(str, self.config.postgres.table_name)
         self._ensure_table_exists()
 
     def _ensure_table_exists(self):
         metadata = MetaData()
+        offset_column_type: Type[TypeEngine]
 
         if self.config.start_from_type == "bigint":
             offset_column_type = BigInteger
