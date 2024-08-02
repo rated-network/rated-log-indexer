@@ -10,7 +10,7 @@ from src.config.models.offset import OffsetYamlConfig
 
 class OffsetTracker(ABC):
     def __init__(self):
-        self.config: OffsetYamlConfig = ConfigurationManager.get_config().offset
+        self.config: OffsetYamlConfig = ConfigurationManager.load_config().offset
         self.start_from: Union[datetime, StrictInt] = self.config.start_from
 
     @abstractmethod
