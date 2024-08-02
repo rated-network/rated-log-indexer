@@ -31,7 +31,7 @@ mock_config_data = OffsetYamlConfig(
 
 @pytest.fixture(scope="module")
 @patch.object(
-    ConfigurationManager, "get_config", return_value=Mock(offset=mock_config_data)
+    ConfigurationManager, "load_config", return_value=Mock(offset=mock_config_data)
 )
 def tracker(mock_get_config):
     return PostgresOffsetTracker()
