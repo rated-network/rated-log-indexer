@@ -24,7 +24,7 @@ jobs:
       run: docker compose run --rm -T --entrypoint black indexer --check .
 
     - name: Run MyPy
-      run: docker compose run --rm -T --entrypoint mypy indexer --check .
+      run: docker compose run --rm -T --entrypoint mypy indexer .
 
     - name: Run Ruff
       run: docker compose run --rm -T --entrypoint ruff indexer check .

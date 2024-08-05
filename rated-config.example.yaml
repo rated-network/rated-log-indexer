@@ -6,7 +6,7 @@ input:
 
 output:
   type: rated
-  rated_output:
+  rated:
     slaos_api_key: your_slaos_api_key
     ingestion_id: your_ingestion_id
     ingestion_key: your_ingestion_key
