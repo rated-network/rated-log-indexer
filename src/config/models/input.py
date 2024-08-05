@@ -1,7 +1,7 @@
 import enum
 
 from pydantic import BaseModel, StrictStr, model_validator
-from typing import Optional
+from typing import Optional, List
 
 
 class CloudwatchConfig(BaseModel):
@@ -11,9 +11,11 @@ class CloudwatchConfig(BaseModel):
 
 
 class DatadogConfig(BaseModel):
+    site: StrictStr
     api_key: StrictStr
     app_key: StrictStr
-    query: StrictStr
+    indexes: List[StrictStr] = ["*"]
+    query: StrictStr = "*"
 
 
 class InputTypes(str, enum.Enum):
