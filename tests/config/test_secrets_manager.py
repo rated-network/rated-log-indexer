@@ -26,6 +26,8 @@ def valid_config_with_secrets(valid_config_dict):
             "api_key": "secret:datadog_api_key_in_secrets_manager",
             "app_key": "app_key_value_raw",
             "query": "some_query",
+            "indexes": ["main"],
+            "site": "datadog.eu",
         },
     }
     config["output"]["rated"][
