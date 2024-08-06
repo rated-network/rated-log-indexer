@@ -28,5 +28,7 @@ ready: ## Get ready to rumble
 
 .PHONY: test
 test:  ## Run tests in Docker, and optionally provide a path to a specific test file or directory
-	@docker compose run --rm -T --entrypoint pytest test $(path) -v
-	@docker compose down
+	@docker compose run --rm -T --entrypoint pytest test $(path) -v; \
+	RESULT=$$?; \
+	docker compose down; \
+	exit $$RESULT

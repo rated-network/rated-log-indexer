@@ -3,18 +3,17 @@ from unittest.mock import MagicMock, patch
 from pydantic import PositiveInt
 
 from src.clients.cloudwatch import CloudwatchClient
-from src.models.configs.cloudwatch_config import CloudwatchConfig
+from src.config.models.input import CloudwatchConfig
 
 
 class MockConfig(CloudwatchConfig):
     def __init__(self):
         super().__init__(
-            region_name="us-west-2",
+            region="us-west-2",
             aws_access_key_id="fake_access_key",
             aws_secret_access_key="fake_secret_key",
-            log_group="test-log-group",
+            log_group_name="test-log-group",
             filter_pattern="{ $.level = 'error' }",
-            start_time=1625097600000,
         )
 
 
@@ -42,7 +41,7 @@ def test_query_logs_initial_query_success(mock_client):
     assert len(logs) == 2
     assert logs == [{"message": "log1"}, {"message": "log2"}]
     mock_client.return_value.filter_log_events.assert_called_once_with(
-        logGroupName=config.log_group,
+        logGroupName=config.log_group_name,
         startTime=start_time,
         endTime=end_time,
         filterPattern=config.filter_pattern,
@@ -82,14 +81,14 @@ def test_query_logs_pagination(mock_client):
     ]
     assert mock_client.return_value.filter_log_events.call_count == 2
     mock_client.return_value.filter_log_events.assert_any_call(
-        logGroupName=config.log_group,
+        logGroupName=config.log_group_name,
         startTime=start_time,
         endTime=end_time,
         filterPattern=config.filter_pattern,
         limit=cloudwatch_client.limit,
     )
     mock_client.return_value.filter_log_events.assert_any_call(
-        logGroupName=config.log_group,
+        logGroupName=config.log_group_name,
         startTime=start_time,
         endTime=end_time,
         filterPattern=config.filter_pattern,

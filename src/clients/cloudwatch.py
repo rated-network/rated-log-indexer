@@ -4,7 +4,8 @@ from boto3 import client  # type: ignore
 from botocore.config import Config  # type: ignore
 from pydantic import PositiveInt, StrictStr
 
-from src.models.configs.cloudwatch_config import CloudwatchConfig, get_cloudwatch_config
+from src.config.manager import ConfigurationManager
+from src.config.models.input import CloudwatchConfig
 from src.utils.logger import logger
 
 
@@ -14,7 +15,7 @@ class CloudwatchClient:
         self.logs_client = client(
             "logs",
             config=Config(
-                region_name=config.region_name,
+                region_name=config.region,
                 retries={"max_attempts": 10, "mode": "standard"},
             ),
             aws_access_key_id=config.aws_access_key_id,
@@ -32,7 +33,7 @@ class CloudwatchClient:
 
         filter_pattern = self.config.filter_pattern
         params = {
-            "logGroupName": self.config.log_group,
+            "logGroupName": self.config.log_group_name,
             "startTime": start_time,
             "endTime": end_time,
             "limit": self.limit,
@@ -50,7 +51,9 @@ class CloudwatchClient:
             try:
                 events_batch = self.logs_client.filter_log_events(**params)
                 logs = events_batch.get("events", [])
-                logger.info(f"Fetched {len(logs)} logs from {self.config.log_group}")
+                logger.info(
+                    f"Fetched {len(logs)} logs from {self.config.log_group_name}"
+                )
                 yield from logs
 
                 if len(logs) < self.limit:
@@ -64,6 +67,10 @@ class CloudwatchClient:
                 raise e
 
 
-def cloudwatch_client() -> CloudwatchClient:
-    config = get_cloudwatch_config()
+def get_cloudwatch_client():
+    try:
+        config = ConfigurationManager.load_config().input.cloudwatch
+    except Exception as e:
+        logger.error(f"Failed to load Cloudwatch configuration for client: {e}")
+        raise e
     return CloudwatchClient(config)
