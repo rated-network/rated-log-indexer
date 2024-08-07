@@ -4,7 +4,7 @@ from typing import Optional, List, Any
 from bytewax.inputs import StatefulSourcePartition, FixedPartitionedSource
 from pydantic import BaseModel, PositiveInt, StrictStr
 
-from src.clients.cloudwatch import cloudwatch_client
+from src.clients.cloudwatch import get_cloudwatch_client
 from src.indexers.offset_tracker.factory import get_offset_tracker
 from src.utils.logger import logger
 from src.utils.time_conversion import from_milliseconds, to_milliseconds
@@ -19,7 +19,7 @@ class TimeRange(BaseModel):
 
 class CloudwatchPartition(StatefulSourcePartition[TimeRange, None]):
     def __init__(self, start_from: Optional[PositiveInt] = None) -> None:
-        self.client = cloudwatch_client()
+        self.client = get_cloudwatch_client()
         self._next_awake = datetime.now(timezone.utc)
 
         self.offset_tracker, self.config_start_from = get_offset_tracker()

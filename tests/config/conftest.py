@@ -7,7 +7,12 @@ def valid_config_dict():
     return {
         "input": {
             "type": "cloudwatch",
-            "cloudwatch": {"region": "us-east-1", "log_group_name": "my-log-group"},
+            "cloudwatch": {
+                "region": "us-east-1",
+                "log_group_name": "my-log-group",
+                "aws_access_key_id": "fake_access_key",
+                "aws_secret_access_key": "fake_secret_key",
+            },
         },
         "output": {
             "type": "rated",

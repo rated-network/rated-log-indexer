@@ -6,8 +6,11 @@ from typing import Optional, List
 
 class CloudwatchConfig(BaseModel):
     region: StrictStr
+    aws_access_key_id: StrictStr
+    aws_secret_access_key: StrictStr
     log_group_name: StrictStr
     log_stream_name: Optional[StrictStr] = None
+    filter_pattern: Optional[StrictStr] = None
 
 
 class DatadogConfig(BaseModel):
