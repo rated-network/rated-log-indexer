@@ -10,6 +10,12 @@ class FieldConfig(BaseModel):
     field_type: RatedParserFieldType
     format: Optional[StrictStr] = None
 
+    @field_validator("field_type", mode="before")
+    def set_field_type(cls, v):
+        if isinstance(v, str):
+            return RatedParserFieldType(v.lower())
+        return v
+
     @field_validator("format")
     def validate_timestamp_format(cls, v, info):
         field_type = info.data.get("field_type")
@@ -24,6 +30,12 @@ class FiltersYamlConfig(BaseModel):
     log_format: RatedParserLogFormat = RatedParserLogFormat.RAW_TEXT
     log_example: Union[StrictStr, Dict]
     fields: List[FieldConfig]
+
+    @field_validator("log_format", mode="before")
+    def set_log_format(cls, v):
+        if isinstance(v, str):
+            return RatedParserLogFormat(v.lower())
+        return v
 
     @field_validator("log_example")
     def validate_log_example(cls, v, info):

@@ -16,7 +16,7 @@ class TestFiltersConfig:
                 {
                     "key": "timestamp",
                     "value": "timestamp_value",
-                    "field_type": "timestamp",
+                    "field_type": "TIMESTAMP",
                     "format": "%Y-%m-%d %H:%M:%S",
                 }
             ],
