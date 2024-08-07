@@ -8,6 +8,7 @@ class RatedOutputConfig(BaseModel):
     slaos_api_key: StrictStr
     ingestion_id: StrictStr
     ingestion_key: StrictStr
+    ingestion_url: StrictStr
 
 
 class OutputTypes(str, enum.Enum):
