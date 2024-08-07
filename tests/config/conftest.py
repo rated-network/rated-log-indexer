@@ -14,6 +14,25 @@ def valid_config_dict():
                 "aws_secret_access_key": "fake_secret_key",
             },
         },
+        "filters": {
+            "version": 1,
+            "log_format": "json_dict",
+            "log_example": {
+                "timestamp": "2023-08-07T10:15:30Z",
+                "level": "INFO",
+                "message": "User logged in",
+            },
+            "fields": [
+                {
+                    "key": "timestamp",
+                    "value": "2023-08-07T10:15:30Z",
+                    "field_type": "timestamp",
+                    "format": "%Y-%m-%dT%H:%M:%SZ",
+                },
+                {"key": "level", "value": "INFO", "field_type": "string"},
+                {"key": "message", "value": "User logged in", "field_type": "string"},
+            ],
+        },
         "output": {
             "type": "rated",
             "rated": {
