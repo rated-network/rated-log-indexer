@@ -2,6 +2,7 @@ import structlog
 import yaml
 import os
 
+from src.config.models.filters import FiltersYamlConfig
 from src.config.secrets.factory import SecretManagerFactory
 from src.config.models.offset import OffsetYamlConfig
 from src.config.models.input import InputYamlConfig
@@ -15,6 +16,7 @@ logger = structlog.get_logger(__name__)
 
 class RatedIndexerYamlConfig(BaseModel):
     input: InputYamlConfig
+    filters: FiltersYamlConfig
     output: OutputYamlConfig
     offset: OffsetYamlConfig
     secrets: SecretsYamlConfig
