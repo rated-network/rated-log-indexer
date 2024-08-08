@@ -38,11 +38,11 @@ def test_load_config_valid(valid_config_yaml):
             assert config.offset.start_from == 123456789
             assert config.offset.start_from_type == "bigint"
             assert config.offset.postgres.table_name == "offset_tracking"
-            assert config.offset.postgres.host == "localhost"
+            assert config.offset.postgres.host == "db"
             assert config.offset.postgres.port == 5432
-            assert config.offset.postgres.database == "postgres"
-            assert config.offset.postgres.user == "postgres"
-            assert config.offset.postgres.password == "postgres"
+            assert config.offset.postgres.database == "test_db"
+            assert config.offset.postgres.user == "user"
+            assert config.offset.postgres.password == "password"
 
             assert config.secrets.use_secrets_manager is False
 
@@ -73,7 +73,6 @@ def test_get_config_invalid_input_type(valid_config_dict):
             ConfigurationManager.load_config()
 
         error_message = str(exc_info.value)
-        print(error_message)
         assert "1 validation error for RatedIndexerYamlConfig" in error_message
         assert (
             'Invalid input source found "invalid_source": please use one of'
@@ -93,7 +92,6 @@ def test_get_config_missing_input_config(valid_config_dict):
             ConfigurationManager.load_config()
 
         error_message = str(exc_info.value)
-        print(error_message)
         assert (
             'Configuration for input source "cloudwatch" is not found. Please add input configuration for cloudwatch.'
             in error_message

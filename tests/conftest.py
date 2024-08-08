@@ -39,6 +39,7 @@ def valid_config_dict():
                 "slaos_api_key": "your_slaos_api_key",
                 "ingestion_id": "your_ingestion_id",
                 "ingestion_key": "your_ingestion_key",
+                "ingestion_url": "https://your_ingestion_url.com",
             },
         },
         "offset": {
@@ -47,11 +48,11 @@ def valid_config_dict():
             "start_from_type": "bigint",
             "postgres": {
                 "table_name": "offset_tracking",
-                "host": "localhost",
+                "host": "db",
                 "port": 5432,
-                "database": "postgres",
-                "user": "postgres",
-                "password": "postgres",
+                "database": "test_db",
+                "user": "user",
+                "password": "password",
             },
         },
         "secrets": {"use_secrets_manager": False},

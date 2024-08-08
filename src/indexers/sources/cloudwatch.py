@@ -1,5 +1,5 @@
 from datetime import datetime, timezone, timedelta
-from typing import Optional, List, Any
+from typing import Optional, List, Any, Iterator, Union, Dict
 
 from bytewax.inputs import StatefulSourcePartition, FixedPartitionedSource
 from pydantic import BaseModel, PositiveInt, StrictStr
@@ -19,7 +19,6 @@ class TimeRange(BaseModel):
 
 class CloudwatchPartition(StatefulSourcePartition[TimeRange, None]):
     def __init__(self, start_from: Optional[PositiveInt] = None) -> None:
-        self.client = get_cloudwatch_client()
         self._next_awake = datetime.now(timezone.utc)
 
         self.offset_tracker, self.config_start_from = get_offset_tracker()
@@ -128,3 +127,10 @@ class CloudwatchSource(FixedPartitionedSource[TimeRange, None]):
     def build_part(self, step_id: StrictStr, for_key: StrictStr, resume_state: Any):
         assert for_key == "single-part"
         return CloudwatchPartition(start_from=self.start_from)
+
+
+def fetch_cloudwatch_logs(
+    time_range: TimeRange,
+) -> Iterator[Union[Dict[str, Any], StrictStr]]:
+    client = get_cloudwatch_client()
+    return client.query_logs(time_range.start_time, time_range.end_time)
