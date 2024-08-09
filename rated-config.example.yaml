@@ -4,6 +4,8 @@ input:
     region: us-east-1
     log_group_name: my-log-group
 
+filters:
+
 output:
   type: rated
   rated:
@@ -13,6 +15,7 @@ output:
 
 offset:
   type: postgres
+  override_start_from: true
   start_from: 123456789
   start_from_type: bigint
   postgres:
