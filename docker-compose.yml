@@ -33,10 +33,15 @@ services:
       dockerfile: Dockerfile
     container_name: rated-log-indexer
     environment:
-      - PYTHONPATH=/indexer/src
+      - PYTHONPATH=/indexer:/indexer/src
     volumes:
       - .:/indexer
-    command: ["python", "src/main.py"]
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: ["python", "-m", "bytewax.run", "src.main:main"]
 
   test:
     build:

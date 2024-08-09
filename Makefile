@@ -8,7 +8,7 @@ build:  ## Build the Docker container
 
 .PHONY: up
 up: ## Start services
-	@docker compose up -d --force-recreate
+	@docker compose up -d --force-recreate indexer db redis
 
 down: ## Stop services
 	@docker compose down

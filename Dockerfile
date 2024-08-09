@@ -2,9 +2,9 @@
 
 FROM python:3.12.0-slim-bullseye
 
-ENV PYTHONPATH=/indexer/src
-
 ENV PYTHONUNBUFFERED=1
+
+ENV PYTHONPATH="/indexer:/indexer/src"
 
 RUN apt-get update \
     && apt-get install --no-install-recommends -y \
@@ -20,4 +20,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-CMD ["python", "src/main.py"]
+#CMD ["python", "src/main.py"]
+
+CMD ["python", "-m", "bytewax.run", "src.main:main"]
