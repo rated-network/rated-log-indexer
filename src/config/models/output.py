@@ -11,6 +11,10 @@ class RatedOutputConfig(BaseModel):
     ingestion_url: StrictStr
 
 
+class ConsoleOutputConfig(BaseModel):
+    placeholder: StrictStr
+
+
 class OutputTypes(str, enum.Enum):
     CONSOLE = "console"
     RATED = "rated"
@@ -20,6 +24,7 @@ class OutputYamlConfig(BaseModel):
     type: OutputTypes
 
     rated: Optional[RatedOutputConfig] = None
+    console: Optional[ConsoleOutputConfig] = None
 
     @model_validator(mode="before")
     def validate_output_config(cls, values):
