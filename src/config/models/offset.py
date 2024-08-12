@@ -6,6 +6,7 @@ from pydantic import (
     StrictInt,
     model_validator,
     field_validator,
+    StrictBool,
 )
 from typing import Optional, Union
 from datetime import datetime
@@ -39,6 +40,7 @@ class OffsetTypes(str, Enum):
 
 class OffsetYamlConfig(BaseModel):
     type: OffsetTypes
+    override_start_from: StrictBool = False
     start_from: Union[StrictInt, datetime]
     start_from_type: StartFromTypes
 

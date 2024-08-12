@@ -24,14 +24,20 @@ class RedisOffsetTracker(OffsetTracker):
         )
         self.client = RedisClient(redis_config)
         self.key = cast(str, self.config.redis.key)
+        self._override_applied = False
 
     def get_current_offset(self) -> Union[StrictInt, datetime]:
         value = self.client.get(self.key)
+
+        if self.config.override_start_from and not self._override_applied:
+            self._override_applied = True
+            value = self.client.get(self.start_from)
+
         if value is None:
             return self.start_from
 
         if isinstance(self.start_from, int):
-            return int(value)
+            return StrictInt(value)
         else:
             return datetime.fromisoformat(value)
 

@@ -30,6 +30,7 @@ class PostgresOffsetTracker(OffsetTracker):
         self.client = PostgresClient(postgres_config)
         self.table_name = cast(str, self.config.postgres.table_name)
         self._ensure_table_exists()
+        self._override_applied = False
 
     def _ensure_table_exists(self):
         metadata = MetaData()
@@ -62,6 +63,11 @@ class PostgresOffsetTracker(OffsetTracker):
                 connection.commit()
 
     def get_current_offset(self) -> Union[int, datetime]:
+        if self.config.override_start_from and not self._override_applied:
+            self._override_applied = True
+            self.update_offset(self.config.start_from)
+            return self.config.start_from
+
         with self.client.engine.connect() as connection:
             select_stmt = select(self.table.c.current_offset)
             result = connection.execute(select_stmt)

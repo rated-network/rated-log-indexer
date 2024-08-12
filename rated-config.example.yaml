@@ -7,6 +7,8 @@ input:
     aws_secret_access_key: your_aws_secret_access_key
     filter_pattern: your_filter_pattern
 
+filters:
+
 output:
   type: rated
   rated:
@@ -26,6 +28,7 @@ filters:
 
 offset:
   type: postgres
+  override_start_from: true
   start_from: 123456789
   start_from_type: bigint
   postgres:
