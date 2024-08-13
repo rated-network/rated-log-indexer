@@ -17,7 +17,7 @@ class TestFiltersConfig:
                 {
                     "key": "timestamp",
                     "value": "timestamp_value",
-                    "field_type": "TIMESTAMP",
+                    "field_type": "timestamp",
                     "format": "%Y-%m-%d %H:%M:%S",
                 }
             ],
@@ -48,12 +48,19 @@ class TestFiltersConfig:
         valid_json_config = {
             "version": 1,
             "log_format": "json_dict",
-            "log_example": {"key": "value"},
-            "fields": [],
+            "log_example": {"testing_key": "testing_value"},
+            "fields": [
+                {
+                    "key": "testing_key",
+                    "value": "testing_value",
+                    "field_type": "string",
+                    "path": "payload.testing_key",
+                }
+            ],
         }
         config = FiltersYamlConfig(**valid_json_config)
         assert config.log_format == RatedParserLogFormat.JSON
-        assert config.log_example == {"key": "value"}
+        assert config.log_example == {"testing_key": "testing_value"}
 
     def test_field_config_valid_timestamp(self):
         valid_field = {
@@ -77,7 +84,7 @@ class TestFiltersConfig:
         }
         with pytest.raises(ValidationError) as exc_info:
             RawTextFieldDefinition(**invalid_field)
-        assert "Format must not be null for TIMESTAMP field type" in str(exc_info.value)
+        assert "Format is required for timestamp fields" in str(exc_info.value)
 
     def test_field_config_non_timestamp_null_format(self):
         valid_field = {

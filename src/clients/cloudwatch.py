@@ -7,7 +7,7 @@ from pydantic import PositiveInt, StrictStr
 from src.config.manager import ConfigurationManager
 from src.config.models.input import CloudwatchConfig
 from src.utils.logger import logger
-from utils.time_conversion import from_milliseconds
+from src.utils.time_conversion import from_milliseconds
 
 
 class CloudwatchClient:

@@ -1,10 +1,10 @@
 from datetime import datetime, timezone, timedelta
-from typing import Optional, List, Any, Iterator, Union, Dict
+from typing import Optional, List, Any, Iterator
 
 from bytewax.inputs import StatefulSourcePartition, FixedPartitionedSource
 from pydantic import BaseModel, PositiveInt, StrictStr
 
-from indexers.filters.types import LogEntry
+from src.indexers.filters.types import LogEntry
 from src.clients.cloudwatch import get_cloudwatch_client
 from src.indexers.offset_tracker.factory import get_offset_tracker
 from src.utils.logger import logger
@@ -125,11 +125,20 @@ class CloudwatchSource(FixedPartitionedSource[TimeRange, None]):
         return CloudwatchPartition()
 
 
-cloudwatch_client = get_cloudwatch_client()
+cloudwatch_client = None
+
+
+def get_cloudwatch_client_instance():
+    global cloudwatch_client
+    if cloudwatch_client is None:
+        cloudwatch_client = get_cloudwatch_client()
+    return cloudwatch_client
 
 
 def fetch_cloudwatch_logs(
     time_range: TimeRange,
-) -> Iterator[Union[Dict[str, Any], StrictStr]]:
-    raw_logs = cloudwatch_client.query_logs(time_range.start_time, time_range.end_time)
+) -> Iterator[LogEntry]:
+    raw_logs = get_cloudwatch_client_instance().query_logs(
+        time_range.start_time, time_range.end_time
+    )
     return (LogEntry.from_cloudwatch_log(log) for log in raw_logs)

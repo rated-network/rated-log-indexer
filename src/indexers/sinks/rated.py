@@ -5,8 +5,8 @@ import httpx
 from bytewax.outputs import DynamicSink, StatelessSinkPartition
 from dataclasses import dataclass
 
-from config.models.output import RatedOutputConfig
-from indexers.filters.manager import FilteredEvent
+from src.config.models.output import RatedOutputConfig
+from src.indexers.filters.manager import FilteredEvent
 
 logger = structlog.get_logger(__name__)
 
@@ -35,13 +35,13 @@ class _HTTPSinkPartition(StatelessSinkPartition):
             http_endpoint=self.config.ingestion_url,
         )
 
-    def _compose_body(self, items: FilteredEvent) -> SlaOsApiBody:
+    def _compose_body(self, items: FilteredEvent) -> dict:
         return SlaOsApiBody(
             customer_id=items.customer_id,
             timestamp=items.event_timestamp.strftime("%Y-%m-%dT%H:%M:%SZ"),
             key=self.config.ingestion_key,
             values=items.values,
-        )
+        ).__dict__
 
     def _compose_headers(self) -> dict:
         return {

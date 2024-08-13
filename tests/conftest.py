@@ -1,5 +1,9 @@
+from unittest.mock import patch
+
 import pytest
 import yaml
+
+from src.config.manager import ConfigurationManager
 
 
 @pytest.fixture
@@ -28,9 +32,20 @@ def valid_config_dict():
                     "value": "2023-08-07T10:15:30Z",
                     "field_type": "timestamp",
                     "format": "%Y-%m-%dT%H:%M:%SZ",
+                    "path": "payload.timestamp",
                 },
-                {"key": "level", "value": "INFO", "field_type": "string"},
-                {"key": "message", "value": "User logged in", "field_type": "string"},
+                {
+                    "key": "level",
+                    "value": "INFO",
+                    "field_type": "string",
+                    "path": "payload.level",
+                },
+                {
+                    "key": "message",
+                    "value": "User logged in",
+                    "field_type": "string",
+                    "path": "payload.message",
+                },
             ],
         },
         "output": {
@@ -61,3 +76,9 @@ def valid_config_dict():
 @pytest.fixture
 def valid_config_yaml(valid_config_dict):
     return yaml.dump(valid_config_dict)
+
+
+@pytest.fixture
+def mock_load_config():
+    with patch.object(ConfigurationManager, "load_config") as mock_load_config:
+        yield mock_load_config
