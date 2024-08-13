@@ -3,34 +3,61 @@ from typing import Any, List
 import structlog
 import httpx
 from bytewax.outputs import DynamicSink, StatelessSinkPartition
+from dataclasses import dataclass
+
+from config.models.output import RatedOutputConfig
+from indexers.filters.manager import FilteredEvent
 
 logger = structlog.get_logger(__name__)
 
 
-class HTTPConfig:
-    def __init__(self, endpoint: str, max_concurrent_requests: int = 10):
-        self.endpoint = endpoint
-        self.max_concurrent_requests = max_concurrent_requests
+@dataclass
+class SlaOsApiBody:
+    customer_id: str
+    timestamp: str
+    key: str
+    values: dict
 
 
 class _HTTPSinkPartition(StatelessSinkPartition):
     def __init__(
         self,
-        config: HTTPConfig,
+        config: RatedOutputConfig,
         worker_index: int,
     ) -> None:
         super().__init__()
         self.worker_index = worker_index
-        self.endpoint = config.endpoint
-        self.max_concurrent_requests = config.max_concurrent_requests
+        self.config = config
         self.client = httpx.AsyncClient()
+        self.max_concurrent_requests = 5
         logger.info(
-            f"Worker {self.worker_index} initialized", http_endpoint=self.endpoint
+            f"Worker {self.worker_index} initialized",
+            http_endpoint=self.config.ingestion_url,
         )
 
-    async def send_item(self, item: Any) -> None:
+    def _compose_body(self, items: FilteredEvent) -> SlaOsApiBody:
+        return SlaOsApiBody(
+            customer_id=items.customer_id,
+            timestamp=items.event_timestamp.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            key=self.config.ingestion_key,
+            values=items.values,
+        )
+
+    def _compose_headers(self) -> dict:
+        return {
+            "Content-Type": "application/json",
+        }
+
+    def _compose_url(self) -> str:
+        return f"{self.config.ingestion_url}/{self.config.ingestion_id}/{self.config.ingestion_key}"
+
+    async def send_item(self, item: FilteredEvent) -> None:
+
         try:
-            response = await self.client.post(self.endpoint, json=item)
+            body = self._compose_body(item)
+            headers = self._compose_headers()
+            url = self._compose_url()
+            response = await self.client.post(url, json=body, headers=headers)
             response.raise_for_status()
         except httpx.HTTPError:
             logger.error(f"Worker {self.worker_index} HTTP error", item=item)
@@ -63,7 +90,7 @@ class _HTTPSinkPartition(StatelessSinkPartition):
 
 
 class HTTPSink(DynamicSink):
-    def __init__(self, config: HTTPConfig) -> None:
+    def __init__(self, config: RatedOutputConfig) -> None:
         super().__init__()
         self.config = config
 
@@ -71,6 +98,5 @@ class HTTPSink(DynamicSink):
         return _HTTPSinkPartition(self.config, worker_index)
 
 
-def build_http_sink(endpoint: str, max_concurrent_requests: int = 10) -> HTTPSink:
-    config = HTTPConfig(endpoint, max_concurrent_requests)
+def build_http_sink(config: RatedOutputConfig) -> HTTPSink:
     return HTTPSink(config=config)

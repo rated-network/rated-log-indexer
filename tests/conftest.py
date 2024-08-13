@@ -36,7 +36,6 @@ def valid_config_dict():
         "output": {
             "type": "rated",
             "rated": {
-                "slaos_api_key": "your_slaos_api_key",
                 "ingestion_id": "your_ingestion_id",
                 "ingestion_key": "your_ingestion_key",
                 "ingestion_url": "https://your_ingestion_url.com",

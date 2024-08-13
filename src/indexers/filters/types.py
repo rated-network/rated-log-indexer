@@ -13,24 +13,33 @@ class LogEntry:
     event_timestamp: datetime
 
     @classmethod
-    def from_cloudwatch_log(cls, log: Dict[str, Any]) -> 'LogEntry':
-
+    def from_cloudwatch_log(cls, log: Dict[str, Any]) -> "LogEntry":
+        content: Union[str, dict]
         try:
-            content: dict = json.loads(log['message'])
+            content = json.loads(log["message"])
             is_json = True
         except json.JSONDecodeError:
-            content: str = log['message']
+            content = log["message"]
             is_json = False
 
-        event_timestamp = datetime.fromtimestamp(log['timestamp'] / 1000, tz=timezone.utc)
+        event_timestamp = datetime.fromtimestamp(
+            log["timestamp"] / 1000, tz=timezone.utc
+        )
 
         return cls(
-            log_id=log.get('eventId', ''),
+            log_id=log["eventId"],
             content=content,
             is_json=is_json,
             metadata={
-                'log_stream_name': log.get('logStreamName', ''),
+                "log_stream_name": log.get("logStreamName", ""),
             },
-            event_timestamp=event_timestamp
+            event_timestamp=event_timestamp,
         )
 
+
+@dataclass
+class FilteredEvent:
+    log_id: str
+    event_timestamp: datetime
+    customer_id: str
+    values: dict

@@ -1,35 +1,17 @@
 from rated_parser import LogFormat as RatedParserLogFormat  # type: ignore
-from rated_parser.core.payloads import FieldType as RatedParserFieldType  # type: ignore
+from rated_parser.core.payloads import (
+    JsonFieldDefinition,
+    RawTextFieldDefinition,
+)  # type: ignore
 from pydantic import BaseModel, StrictStr, StrictInt, field_validator
-from typing import List, Optional, Union, Dict
-
-
-class FieldConfig(BaseModel):
-    key: StrictStr
-    value: StrictStr
-    field_type: RatedParserFieldType
-    format: Optional[StrictStr] = None
-
-    @field_validator("field_type", mode="before")
-    def set_field_type(cls, v):
-        if isinstance(v, str):
-            return RatedParserFieldType(v.lower())
-        return v
-
-    @field_validator("format")
-    def validate_timestamp_format(cls, v, info):
-        field_type = info.data.get("field_type")
-        if field_type == RatedParserFieldType.TIMESTAMP:
-            if v is None:
-                raise ValueError("Format must not be null for TIMESTAMP field type")
-        return v
+from typing import List, Union, Dict
 
 
 class FiltersYamlConfig(BaseModel):
     version: StrictInt
-    log_format: RatedParserLogFormat = RatedParserLogFormat.RAW_TEXT
+    log_format: RatedParserLogFormat
     log_example: Union[StrictStr, Dict]
-    fields: List[FieldConfig]
+    fields: Union[List[JsonFieldDefinition], List[RawTextFieldDefinition]]
 
     @field_validator("log_format", mode="before")
     def set_log_format(cls, v):
@@ -45,4 +27,25 @@ class FiltersYamlConfig(BaseModel):
             raise ValueError("log_example must be a string when log_format is RAW_TEXT")
         elif log_format == RatedParserLogFormat.JSON and not isinstance(v, dict):
             raise ValueError("log_example must be a dictionary when log_format is JSON")
+        return v
+
+    @field_validator("fields")
+    def validate_field_types(cls, v, info):
+        log_format = info.data.get("log_format")
+
+        if not v:
+            raise ValueError("Filter fields cannot be empty")
+
+        if log_format == RatedParserLogFormat.RAW_TEXT:
+            for field in v:
+                if not isinstance(field, RawTextFieldDefinition):
+                    raise ValueError(
+                        "fields must be a list of RawTextFieldDefinition when log_format is 'raw_text'"
+                    )
+        elif log_format == RatedParserLogFormat.JSON:
+            for field in v:
+                if not isinstance(field, JsonFieldDefinition):
+                    raise ValueError(
+                        "fields must be a list of JsonFieldDefinition when log_format is 'json_dict'"
+                    )
         return v

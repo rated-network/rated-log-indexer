@@ -7,15 +7,12 @@ input:
     aws_secret_access_key: your_aws_secret_access_key
     filter_pattern: your_filter_pattern
 
-filters:
-
 output:
   type: rated
   rated:
-    slaos_api_key: your_slaos_api_key
     ingestion_id: your_ingestion_id
     ingestion_key: your_ingestion_key
-    ingestion_url: your_ingestion_url
+    ingestion_url: https://rated.live/v1/ingest
 
 filters:
   version: 1

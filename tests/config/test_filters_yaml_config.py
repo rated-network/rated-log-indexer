@@ -2,7 +2,8 @@ import pytest
 from pydantic import ValidationError
 from rated_parser import LogFormat as RatedParserLogFormat  # type: ignore
 from rated_parser.core.payloads import FieldType as RatedParserFieldType  # type: ignore
-from src.config.models.filters import FiltersYamlConfig, FieldConfig
+from rated_parser.core.payloads import JsonFieldDefinition, RawTextFieldDefinition
+from src.config.models.filters import FiltersYamlConfig
 
 
 class TestFiltersConfig:
@@ -61,7 +62,7 @@ class TestFiltersConfig:
             "field_type": "timestamp",
             "format": "%Y-%m-%d %H:%M:%S",
         }
-        field = FieldConfig(**valid_field)
+        field = RawTextFieldDefinition(**valid_field)
         assert field.key == "timestamp_field"
         assert field.value == "timestamp_value"
         assert field.field_type == RatedParserFieldType.TIMESTAMP
@@ -75,7 +76,7 @@ class TestFiltersConfig:
             "format": None,
         }
         with pytest.raises(ValidationError) as exc_info:
-            FieldConfig(**invalid_field)
+            RawTextFieldDefinition(**invalid_field)
         assert "Format must not be null for TIMESTAMP field type" in str(exc_info.value)
 
     def test_field_config_non_timestamp_null_format(self):
@@ -85,8 +86,31 @@ class TestFiltersConfig:
             "field_type": "string",
             "format": None,
         }
-        field = FieldConfig(**valid_field)
+        field = RawTextFieldDefinition(**valid_field)
         assert field.key == "string_field"
         assert field.value == "string_value"
         assert field.field_type == RatedParserFieldType.STRING
         assert field.format is None
+
+    def test_json_field_no_path_raises(self):
+        invalid_field = {
+            "key": "json_field",
+            "field_type": "timestamp",
+            "format": "%Y-%m-%d %H:%M:%S",
+        }
+
+        with pytest.raises(ValidationError) as exc_info:
+            JsonFieldDefinition(**invalid_field)
+            assert "value_error.missing" in str(exc_info.value)
+
+    def test_json_field_has_path(self):
+        valid_field = {
+            "key": "json_field",
+            "field_type": "string",
+            "path": "timestamp.eventTime",
+        }
+
+        field = JsonFieldDefinition(**valid_field)
+        assert field.key == "json_field"
+        assert field.field_type == RatedParserFieldType.STRING
+        assert field.path == "timestamp.eventTime"

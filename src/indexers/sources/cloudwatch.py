@@ -4,6 +4,7 @@ from typing import Optional, List, Any, Iterator, Union, Dict
 from bytewax.inputs import StatefulSourcePartition, FixedPartitionedSource
 from pydantic import BaseModel, PositiveInt, StrictStr
 
+from indexers.filters.types import LogEntry
 from src.clients.cloudwatch import get_cloudwatch_client
 from src.indexers.offset_tracker.factory import get_offset_tracker
 from src.utils.logger import logger
@@ -18,25 +19,24 @@ class TimeRange(BaseModel):
 
 
 class CloudwatchPartition(StatefulSourcePartition[TimeRange, None]):
-    def __init__(self, start_from: Optional[PositiveInt] = None) -> None:
+    def __init__(self) -> None:
         self._next_awake = datetime.now(timezone.utc)
 
         self.offset_tracker, self.config_start_from = get_offset_tracker()
 
-        self.current_time = self._get_current_offset(start_from)
+        self.current_time = self._get_current_offset()
         self.timestamp = from_milliseconds(self.current_time)
         logger.info(
             f"Starting Cloudwatch indexing from {(self.current_time, self.timestamp)}"
         )
 
-    def _get_current_offset(self, start_from: Optional[PositiveInt]) -> PositiveInt:
+    def _get_current_offset(self) -> PositiveInt:
         """
         Determines the starting offset for Cloudwatch log indexing.
 
         This method compares three potential starting points and selects the most recent (highest) one:
         1. The current offset from the offset tracker
         2. The start time specified in the configuration
-        3. An optional start time passed as an argument
 
         The method ensures we always start indexing from the latest acceptable point,
         preventing accidental processing of data from before the intended start time.
@@ -61,9 +61,8 @@ class CloudwatchPartition(StatefulSourcePartition[TimeRange, None]):
             if isinstance(current_offset, datetime)
             else current_offset
         )
-        start_from_ms = start_from if start_from is not None else 0
 
-        highest_offset = max(current_offset_ms, config_start_from_ms, start_from_ms)
+        highest_offset = max(current_offset_ms, config_start_from_ms)
         if highest_offset > current_offset_ms:
             self.offset_tracker.update_offset(highest_offset)
 
@@ -76,9 +75,6 @@ class CloudwatchPartition(StatefulSourcePartition[TimeRange, None]):
 
         timestamp = datetime.now(timezone.utc)
         head = to_milliseconds(timestamp)
-        logger.info(
-            f"Latest timestamp is {timestamp}. Current timestamp for indexing is {self.current_time}"
-        )
 
         if head - self.current_time > DAY_INTERVAL:
             head = self.current_time + DAY_INTERVAL
@@ -118,19 +114,22 @@ class CloudwatchSource(FixedPartitionedSource[TimeRange, None]):
     emits a safe range to fetch
     """
 
-    def __init__(self, start_from: Optional[PositiveInt] = None):
-        self.start_from = start_from
+    def __init__(self):
+        pass
 
     def list_parts(self):
         return ["single-part"]
 
     def build_part(self, step_id: StrictStr, for_key: StrictStr, resume_state: Any):
         assert for_key == "single-part"
-        return CloudwatchPartition(start_from=self.start_from)
+        return CloudwatchPartition()
+
+
+cloudwatch_client = get_cloudwatch_client()
 
 
 def fetch_cloudwatch_logs(
     time_range: TimeRange,
 ) -> Iterator[Union[Dict[str, Any], StrictStr]]:
-    client = get_cloudwatch_client()
-    return client.query_logs(time_range.start_time, time_range.end_time)
+    raw_logs = cloudwatch_client.query_logs(time_range.start_time, time_range.end_time)
+    return (LogEntry.from_cloudwatch_log(log) for log in raw_logs)
