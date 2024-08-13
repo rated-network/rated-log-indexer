@@ -1,3 +1,5 @@
+import sys
+
 import structlog
 import yaml
 import os
@@ -8,8 +10,7 @@ from src.config.models.offset import OffsetYamlConfig
 from src.config.models.input import InputYamlConfig
 from src.config.models.output import OutputYamlConfig
 from src.config.models.secrets import SecretsYamlConfig
-from pydantic import BaseModel
-
+from pydantic import BaseModel, ValidationError
 
 logger = structlog.get_logger(__name__)
 
@@ -37,10 +38,17 @@ class ConfigurationManager:
             if config.secrets.use_secrets_manager:
                 secret_manager_handler = SecretManagerFactory.create(config)
                 secret_manager_handler.resolve_secrets(config)
-            else:
-                logger.warning(
-                    "Secrets manager is disabled, its use is encouraged in production environments"
-                )
+
             return config
-        except ValueError as e:
-            raise ValueError(f"Invalid configuration: {str(e)}")
+
+        except ValidationError as e:
+            logger.error("Configuration validation failed with the following errors:")
+            for error in e.errors():
+                logger.error(f"Field: {error['loc']} - Error: {error['msg']}")
+            sys.exit(1)
+        except Exception as e:
+            logger.exception(
+                "An unexpected error occurred while loading the configuration.",
+                exc_info=e,
+            )
+            raise

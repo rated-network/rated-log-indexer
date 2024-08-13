@@ -31,8 +31,8 @@ def valid_config_with_secrets(valid_config_dict):
         },
     }
     config["output"]["rated"][
-        "slaos_api_key"
-    ] = "secret:slaos_api_key_in_secrets_manager"
+        "ingestion_key"
+    ] = "secret:ingestion_key_key_in_secrets_manager"
     return config
 
 
@@ -41,7 +41,7 @@ def mock_aws_secrets_manager():
     with patch("src.config.secrets.aws_secrets_manager.boto3.client") as mock_client:
         mock_secrets = {
             "datadog_api_key_in_secrets_manager": "resolved_datadog_api_key",
-            "slaos_api_key_in_secrets_manager": "resolved_slaos_api_key",
+            "ingestion_key_key_in_secrets_manager": "resolved_ingestion_key",
             "app_key": "resolved_datadog_app_key",
         }
         mock_client.return_value.get_secret_value.side_effect = lambda SecretId: {
@@ -65,10 +65,10 @@ def test_get_config_with_secrets(valid_config_with_secrets, mock_aws_secrets_man
         assert result_config.input.type == InputTypes.DATADOG
         assert result_config.input.datadog.app_key == "app_key_value_raw"
         assert result_config.input.datadog.api_key == "resolved_datadog_api_key"
-        assert result_config.output.rated.slaos_api_key == "resolved_slaos_api_key"
+        assert result_config.output.rated.ingestion_key == "resolved_ingestion_key"
 
         assert not result_config.input.datadog.api_key.startswith("secret:")
-        assert not result_config.output.rated.slaos_api_key.startswith("secret:")
+        assert not result_config.output.rated.ingestion_key.startswith("secret:")
 
 
 def test_secret_manager_resolve_secrets(

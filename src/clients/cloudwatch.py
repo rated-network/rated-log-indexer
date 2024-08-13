@@ -7,6 +7,7 @@ from pydantic import PositiveInt, StrictStr
 from src.config.manager import ConfigurationManager
 from src.config.models.input import CloudwatchConfig
 from src.utils.logger import logger
+from src.utils.time_conversion import from_milliseconds
 
 
 class CloudwatchClient:
@@ -52,7 +53,16 @@ class CloudwatchClient:
                 events_batch = self.logs_client.filter_log_events(**params)
                 logs = events_batch.get("events", [])
                 logger.info(
-                    f"Fetched {len(logs)} logs from {self.config.log_group_name}"
+                    f"Fetched {len(logs)} logs from Cloudwatch",
+                    start_time=start_time,
+                    end_time=end_time,
+                    log_group_name=self.config.log_group_name,
+                    start_time_str=from_milliseconds(start_time).strftime(
+                        "%Y-%m-%d %H:%M:%S"
+                    ),
+                    end_time_str=from_milliseconds(end_time).strftime(
+                        "%Y-%m-%d %H:%M:%S"
+                    ),
                 )
                 yield from logs
 

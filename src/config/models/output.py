@@ -1,18 +1,17 @@
 import enum
 from typing import Optional
 
-from pydantic import BaseModel, StrictStr, model_validator
+from pydantic import BaseModel, StrictStr, model_validator, StrictBool
 
 
 class RatedOutputConfig(BaseModel):
-    slaos_api_key: StrictStr
     ingestion_id: StrictStr
     ingestion_key: StrictStr
     ingestion_url: StrictStr
 
 
 class ConsoleOutputConfig(BaseModel):
-    placeholder: StrictStr
+    verbose: StrictBool = True
 
 
 class OutputTypes(str, enum.Enum):

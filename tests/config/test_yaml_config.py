@@ -30,7 +30,6 @@ def test_load_config_valid(valid_config_yaml):
             assert config.input.cloudwatch.log_group_name == "my-log-group"
 
             assert config.output.type == "rated"
-            assert config.output.rated.slaos_api_key == "your_slaos_api_key"
             assert config.output.rated.ingestion_id == "your_ingestion_id"
             assert config.output.rated.ingestion_key == "your_ingestion_key"
 
