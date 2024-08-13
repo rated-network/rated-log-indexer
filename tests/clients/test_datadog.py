@@ -1,6 +1,7 @@
 import pytest
 from unittest.mock import MagicMock, patch
-from datetime import datetime
+
+from src.config.models.input import DatadogLogsConfig
 from src.clients.datadog import DatadogClient, DatadogConfig
 
 
@@ -9,9 +10,11 @@ class MockDatadogConfig(DatadogConfig):
         super().__init__(
             api_key="fake_api_key",
             app_key="fake_app_key",
-            indexes=["main"],
             site="datadog.eu",
-            query="*",
+            logs_config=DatadogLogsConfig(
+                indexes=["main"],
+                query="*",
+            ),
         )
 
 
@@ -31,8 +34,8 @@ def test_query_logs_initial_query_success(mock_logs_api):
     config = MockDatadogConfig()
     datadog_client = DatadogClient(config)
 
-    start_time = datetime(2024, 8, 2, 11, 20, 16)
-    end_time = datetime(2024, 8, 2, 11, 31, 16)
+    start_time = 1722597616000  # 2024-08-02T11:20:16
+    end_time = 1722598276000  # 2024-08-02T11:31:16
 
     logs = list(datadog_client.query_logs(start_time, end_time))
 
@@ -59,8 +62,8 @@ def test_query_logs_pagination(mock_logs_api):
     config = MockDatadogConfig()
     datadog_client = DatadogClient(config)
 
-    start_time = datetime(2024, 8, 2, 11, 20, 16)
-    end_time = datetime(2024, 8, 2, 11, 31, 16)
+    start_time = 1722597616000  # 2024-08-02T11:20:16
+    end_time = 1722598276000  # 2024-08-02T11:31:16
 
     logs = list(datadog_client.query_logs(start_time, end_time))
 
@@ -81,8 +84,8 @@ def test_query_logs_handles_exceptions(mock_logs_api):
     config = MockDatadogConfig()
     datadog_client = DatadogClient(config)
 
-    start_time = datetime(2024, 8, 2, 11, 20, 16)
-    end_time = datetime(2024, 8, 2, 11, 31, 16)
+    start_time = 1722597616000  # 2024-08-02T11:20:16
+    end_time = 1722598276000  # 2024-08-02T11:31:16
 
     with pytest.raises(Exception, match="Test exception"):
         list(datadog_client.query_logs(start_time, end_time))
@@ -98,8 +101,8 @@ def test_query_logs_empty_response(mock_logs_api):
     config = MockDatadogConfig()
     datadog_client = DatadogClient(config)
 
-    start_time = datetime(2024, 8, 2, 11, 20, 16)
-    end_time = datetime(2024, 8, 2, 11, 31, 16)
+    start_time = 1722597616000  # 2024-08-02T11:20:16
+    end_time = 1722598276000  # 2024-08-02T11:31:16
 
     logs = list(datadog_client.query_logs(start_time, end_time))
 

@@ -19,13 +19,18 @@ class TestFiltersConfig:
                     "value": "timestamp_value",
                     "field_type": "timestamp",
                     "format": "%Y-%m-%d %H:%M:%S",
-                }
+                },
+                {
+                    "key": "customer_id",
+                    "value": "customer_id_value",
+                    "field_type": "string",
+                },
             ],
         }
         config = FiltersYamlConfig(**valid_config)
         assert config.log_format == RatedParserLogFormat.RAW_TEXT
         assert config.log_example == "This is a raw text log example"
-        assert len(config.fields) == 1
+        assert len(config.fields) == 2
         assert config.fields[0].key == "timestamp"
         assert config.fields[0].value == "timestamp_value"
         assert config.fields[0].field_type == RatedParserFieldType.TIMESTAMP
@@ -55,7 +60,13 @@ class TestFiltersConfig:
                     "value": "testing_value",
                     "field_type": "string",
                     "path": "payload.testing_key",
-                }
+                },
+                {
+                    "key": "customer_id",
+                    "value": "customer_id_value",
+                    "field_type": "string",
+                    "path": "payload.customer_id",
+                },
             ],
         }
         config = FiltersYamlConfig(**valid_json_config)

@@ -25,9 +25,10 @@ def test_load_config_valid(valid_config_yaml):
             assert isinstance(config.offset, OffsetYamlConfig)
             assert isinstance(config.secrets, SecretsYamlConfig)
 
-            assert config.input.type == "cloudwatch"
+            assert config.input.integration == "cloudwatch"
+            assert config.input.type == "logs"
             assert config.input.cloudwatch.region == "us-east-1"
-            assert config.input.cloudwatch.log_group_name == "my-log-group"
+            assert config.input.cloudwatch.logs_config.log_group_name == "my-log-group"
 
             assert config.output.type == "rated"
             assert config.output.rated.ingestion_id == "your_ingestion_id"
@@ -82,7 +83,7 @@ def test_get_config_invalid_input_type(valid_config_dict):
 def test_get_config_missing_input_config(valid_config_dict):
     invalid_config = valid_config_dict.copy()
     invalid_config["input"] = {
-        "type": "cloudwatch",
+        "integration": "cloudwatch",
     }
 
     with patch.object(ConfigurationManager, "load_config") as mock_load_config:

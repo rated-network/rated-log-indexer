@@ -1,5 +1,6 @@
 from typing import Any, Dict, Union, Iterator
 
+import stamina
 from boto3 import client  # type: ignore
 from botocore.config import Config  # type: ignore
 from pydantic import PositiveInt, StrictStr
@@ -17,7 +18,6 @@ class CloudwatchClient:
             "logs",
             config=Config(
                 region_name=config.region,
-                retries={"max_attempts": 10, "mode": "standard"},
             ),
             aws_access_key_id=config.aws_access_key_id,
             aws_secret_access_key=config.aws_secret_access_key,
@@ -26,15 +26,21 @@ class CloudwatchClient:
             10_000 if limit > 10_000 else limit
         )  # Cannot be greater than 10_000 as per AWS documentation.
 
+    @stamina.retry(on=Exception, attempts=5)
     def query_logs(
         self,
         start_time: PositiveInt,
         end_time: PositiveInt,
     ) -> Iterator[Union[Dict[str, Any], StrictStr]]:
+        logs_config = self.config.logs_config
 
-        filter_pattern = self.config.filter_pattern
+        if not logs_config:
+            logger.error("Cloudwatch logs configuration is missing.", exc_info=True)
+            raise
+
+        filter_pattern = logs_config.filter_pattern
         params = {
-            "logGroupName": self.config.log_group_name,
+            "logGroupName": logs_config.log_group_name,
             "startTime": start_time,
             "endTime": end_time,
             "limit": self.limit,
@@ -56,7 +62,7 @@ class CloudwatchClient:
                     f"Fetched {len(logs)} logs from Cloudwatch",
                     start_time=start_time,
                     end_time=end_time,
-                    log_group_name=self.config.log_group_name,
+                    log_group_name=logs_config.log_group_name,
                     start_time_str=from_milliseconds(start_time).strftime(
                         "%Y-%m-%d %H:%M:%S"
                     ),

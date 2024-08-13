@@ -42,8 +42,10 @@ class FilterManager:
             parsed_log = self.log_parser.parse_log(
                 log_entry.content, version=self.filter_config.version
             )
-            # if not customer_id or values is {} or none then return None
-            print(parsed_log)
+            fields = parsed_log.parsed_fields
+            if not fields or not fields.get("customer_id"):
+                return None
+
             return FilteredEvent(
                 log_id=log_entry.log_id,
                 event_timestamp=log_entry.event_timestamp,

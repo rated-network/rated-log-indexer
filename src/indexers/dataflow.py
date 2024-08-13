@@ -1,24 +1,45 @@
-from typing import Callable
+from typing import Callable, Iterator
 
 from bytewax.dataflow import Dataflow
 import bytewax.operators as op
 from bytewax.inputs import FixedPartitionedSource
 from bytewax.outputs import DynamicSink
 
+from src.clients.cloudwatch import get_cloudwatch_client
+from src.indexers.filters.types import LogEntry
 from src.indexers.filters.manager import FilterManager
 from src.config.manager import RatedIndexerYamlConfig
-from src.config.models.input import InputTypes
+from src.config.models.input import IntegrationTypes
 from src.config.models.output import OutputTypes
 from src.indexers.sinks.console import build_console_sink
 from src.indexers.sinks.rated import build_http_sink
-from src.indexers.sources.cloudwatch import CloudwatchSource, fetch_cloudwatch_logs
+from src.indexers.sources.logs import LogsSource, TimeRange
 from src.utils.logger import logger
+
+
+cloudwatch_client = None
+
+
+def get_cloudwatch_client_instance():
+    global cloudwatch_client
+    if cloudwatch_client is None:
+        cloudwatch_client = get_cloudwatch_client()
+    return cloudwatch_client
+
+
+def fetch_cloudwatch_logs(
+    time_range: TimeRange,
+) -> Iterator[LogEntry]:
+    raw_logs = get_cloudwatch_client_instance().query_logs(
+        time_range.start_time, time_range.end_time
+    )
+    return (LogEntry.from_cloudwatch_log(log) for log in raw_logs)
 
 
 def parse_config(
     config: RatedIndexerYamlConfig,
 ) -> tuple[
-    InputTypes,
+    IntegrationTypes,
     FixedPartitionedSource,
     Callable,
     OutputTypes,
@@ -29,12 +50,15 @@ def parse_config(
     output_config = config.output
     filter_config = config.filters
 
-    # TODO: use dictionary hashmap to avoid if-else
-    if input_config.type == InputTypes.CLOUDWATCH.value and input_config.cloudwatch:
-        input_source = CloudwatchSource()
+    input_source = LogsSource()
+
+    if (
+        input_config.integration == IntegrationTypes.CLOUDWATCH.value
+        and input_config.cloudwatch
+    ):
         logs_fetcher = fetch_cloudwatch_logs
     else:
-        raise ValueError(f"Invalid input source: {input_config.type}")
+        raise ValueError(f"Invalid input source: {input_config.integration}")
 
     if output_config.type == OutputTypes.RATED.value and output_config.rated:
         rated_config = output_config.rated
@@ -45,7 +69,7 @@ def parse_config(
         raise ValueError(f"Invalid output source: {output_config.type}")
 
     return (
-        input_config.type,
+        input_config.integration,
         input_source,
         logs_fetcher,
         output_config.type,
@@ -55,7 +79,7 @@ def parse_config(
 
 
 def build_dataflow(
-    input_type: InputTypes,
+    input_type: IntegrationTypes,
     input_source: FixedPartitionedSource,
     fetch_logs: Callable,
     output_type: OutputTypes,

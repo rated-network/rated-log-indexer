@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import patch
 
-from src.config.models.input import InputTypes
+from src.config.models.input import IntegrationTypes
 from src.config.manager import ConfigurationManager, RatedIndexerYamlConfig
 from src.config.models.secrets import SecretProvider
 from src.config.secrets.aws_secrets_manager import AwsSecretManager
@@ -21,13 +21,16 @@ def valid_config_with_secrets(valid_config_dict):
     }
 
     config["input"] = {
-        "type": "datadog",
+        "integration": "datadog",
+        "type": "logs",
         "datadog": {
             "api_key": "secret:datadog_api_key_in_secrets_manager",
             "app_key": "app_key_value_raw",
-            "query": "some_query",
-            "indexes": ["main"],
             "site": "datadog.eu",
+            "logs_config": {
+                "query": "some_query",
+                "indexes": ["main"],
+            },
         },
     }
     config["output"]["rated"][
@@ -62,7 +65,7 @@ def test_get_config_with_secrets(valid_config_with_secrets, mock_aws_secrets_man
         assert isinstance(result_config, RatedIndexerYamlConfig)
         assert result_config.secrets.use_secrets_manager is True
         assert result_config.secrets.provider == SecretProvider.AWS
-        assert result_config.input.type == InputTypes.DATADOG
+        assert result_config.input.integration == IntegrationTypes.DATADOG
         assert result_config.input.datadog.app_key == "app_key_value_raw"
         assert result_config.input.datadog.api_key == "resolved_datadog_api_key"
         assert result_config.output.rated.ingestion_key == "resolved_ingestion_key"

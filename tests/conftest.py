@@ -10,12 +10,16 @@ from src.config.manager import ConfigurationManager
 def valid_config_dict():
     return {
         "input": {
-            "type": "cloudwatch",
+            "integration": "cloudwatch",
+            "type": "logs",
             "cloudwatch": {
                 "region": "us-east-1",
-                "log_group_name": "my-log-group",
                 "aws_access_key_id": "fake_access_key",
                 "aws_secret_access_key": "fake_secret_key",
+                "logs_config": {
+                    "log_group_name": "my-log-group",
+                    "filter_pattern": "*",
+                },
             },
         },
         "filters": {
@@ -28,23 +32,16 @@ def valid_config_dict():
             },
             "fields": [
                 {
-                    "key": "timestamp",
-                    "value": "2023-08-07T10:15:30Z",
-                    "field_type": "timestamp",
-                    "format": "%Y-%m-%dT%H:%M:%SZ",
-                    "path": "payload.timestamp",
+                    "key": "example_key",
+                    "value": "example_value",
+                    "field_type": "string",
+                    "path": "payload.example_key",
                 },
                 {
-                    "key": "level",
-                    "value": "INFO",
+                    "key": "customer_id",
+                    "value": "customer_id_value",
                     "field_type": "string",
-                    "path": "payload.level",
-                },
-                {
-                    "key": "message",
-                    "value": "User logged in",
-                    "field_type": "string",
-                    "path": "payload.message",
+                    "path": "payload.customer_id",
                 },
             ],
         },
