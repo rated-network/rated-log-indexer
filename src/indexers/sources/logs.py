@@ -1,11 +1,10 @@
 from datetime import datetime, timezone, timedelta
-from typing import Optional, List, Any, Iterator
+from typing import Optional, List, Any
 
 from bytewax.inputs import StatefulSourcePartition, FixedPartitionedSource
 from pydantic import BaseModel, PositiveInt, StrictStr
 
-from src.indexers.filters.types import LogEntry
-from src.clients.cloudwatch import get_cloudwatch_client
+from src.config.manager import ConfigurationManager
 from src.indexers.offset_tracker.factory import get_offset_tracker
 from src.utils.logger import logger
 from src.utils.time_conversion import from_milliseconds, to_milliseconds
@@ -18,16 +17,19 @@ class TimeRange(BaseModel):
     end_time: PositiveInt
 
 
-class CloudwatchPartition(StatefulSourcePartition[TimeRange, None]):
+class LogsPartition(StatefulSourcePartition[TimeRange, None]):
     def __init__(self) -> None:
         self._next_awake = datetime.now(timezone.utc)
+
+        self.config = ConfigurationManager().load_config().input
+        self.integration = self.config.integration
 
         self.offset_tracker, self.config_start_from = get_offset_tracker()
 
         self.current_time = self._get_current_offset()
         self.timestamp = from_milliseconds(self.current_time)
         logger.info(
-            f"Starting Cloudwatch indexing from {(self.current_time, self.timestamp)}"
+            f"Starting {self.integration.value} indexing from {(self.current_time, self.timestamp)}"
         )
 
     def _get_current_offset(self) -> PositiveInt:
@@ -68,9 +70,9 @@ class CloudwatchPartition(StatefulSourcePartition[TimeRange, None]):
 
         return highest_offset
 
-    def cloudwatch_time_range(self) -> Optional[TimeRange]:
+    def _get_time_range(self) -> Optional[TimeRange]:
         """
-        Fetches the next time range to index from Cloudwatch, with a max of a day's worth of logs.
+        Fetches the next time range to index from integration, with a max of a day's worth of logs.
         """
 
         timestamp = datetime.now(timezone.utc)
@@ -86,12 +88,14 @@ class CloudwatchPartition(StatefulSourcePartition[TimeRange, None]):
 
         self.offset_tracker.update_offset(self.current_time)
 
-        logger.info(f"Fetching Cloudwatch logs from {start_time} to {head}")
+        logger.info(
+            f"Fetching {self.integration.value} logs from {start_time} to {head}"
+        )
 
         return TimeRange(start_time=start_time, end_time=head)
 
     def next_batch(self) -> List[TimeRange]:
-        time_range = self.cloudwatch_time_range()
+        time_range = self._get_time_range()
         if not time_range:
             self._next_awake += timedelta(seconds=24.0)
             return []
@@ -108,7 +112,7 @@ class CloudwatchPartition(StatefulSourcePartition[TimeRange, None]):
         return None
 
 
-class CloudwatchSource(FixedPartitionedSource[TimeRange, None]):
+class LogsSource(FixedPartitionedSource[TimeRange, None]):
     """
     Yields time ranges. Continuously polls the source for the new head,
     emits a safe range to fetch
@@ -122,23 +126,4 @@ class CloudwatchSource(FixedPartitionedSource[TimeRange, None]):
 
     def build_part(self, step_id: StrictStr, for_key: StrictStr, resume_state: Any):
         assert for_key == "single-part"
-        return CloudwatchPartition()
-
-
-cloudwatch_client = None
-
-
-def get_cloudwatch_client_instance():
-    global cloudwatch_client
-    if cloudwatch_client is None:
-        cloudwatch_client = get_cloudwatch_client()
-    return cloudwatch_client
-
-
-def fetch_cloudwatch_logs(
-    time_range: TimeRange,
-) -> Iterator[LogEntry]:
-    raw_logs = get_cloudwatch_client_instance().query_logs(
-        time_range.start_time, time_range.end_time
-    )
-    return (LogEntry.from_cloudwatch_log(log) for log in raw_logs)
+        return LogsPartition()

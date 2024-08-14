@@ -4,13 +4,15 @@ from bytewax.testing import run_main, TestingSource
 from pytest_httpx import HTTPXMock
 from rated_parser.core.payloads import JsonFieldDefinition, LogFormat, FieldType  # type: ignore
 
+
 from src.indexers.filters.types import LogEntry
 from src.config.models.filters import FiltersYamlConfig
 from src.indexers.filters.manager import FilterManager
-from src.config.models.input import InputTypes
-from src.config.models.output import OutputTypes, RatedOutputConfig
+from src.config.models.output import RatedOutputConfig
+from src.config.models.input import IntegrationTypes
+from src.config.models.output import OutputTypes
 from src.indexers.sinks.rated import build_http_sink
-from src.indexers.sources.cloudwatch import TimeRange
+from src.indexers.sources.logs import TimeRange
 from src.config.manager import RatedIndexerYamlConfig
 from src.indexers.dataflow import build_dataflow
 
@@ -24,17 +26,16 @@ def test_dataflow(
     valid_config_dict,
 ):
     mock_load_config.return_value = RatedIndexerYamlConfig(**valid_config_dict)
-
     sample_logs = [
         {
             "eventId": "mock_log_one",
             "timestamp": 1723041096000,
-            "message": '{"example_key": "example_value_one"}',
+            "message": '{"example_key": "example_value_one", "data": {"customer_id": "customer_one"}}',
         },
         {
             "eventId": "mock_log_two",
             "timestamp": 1723041096100,
-            "message": '{"example_key": "example_value_two"}',
+            "message": '{"example_key": "example_value_two", "data": {"customer_id": "customer_two"}}',
         },
     ]
     sample_log_entries = [LogEntry.from_cloudwatch_log(log) for log in sample_logs]
@@ -56,13 +57,21 @@ def test_dataflow(
         version=1,
         log_format=LogFormat.JSON,
         log_example={
-            "message": "log2",
+            "message": {
+                "example_key": "example_value_two",
+                "customer_id": "customer_two",
+            },
         },
         fields=[
             JsonFieldDefinition(
                 key="example_key",
                 field_type=FieldType.STRING,
-                path="payload.example_key",
+                path="example_key",
+            ),
+            JsonFieldDefinition(
+                key="customer_id",
+                field_type=FieldType.STRING,
+                path="data.customer_id",
             ),
         ],
     )
@@ -70,7 +79,7 @@ def test_dataflow(
 
     mock_input = TestingSource([TimeRange(start_time=1, end_time=2)])
     flow = build_dataflow(
-        InputTypes.CLOUDWATCH,
+        IntegrationTypes.CLOUDWATCH,
         mock_input,
         mock_fetch_cloudwatch_logs,
         OutputTypes.RATED,

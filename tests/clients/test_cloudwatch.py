@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 from pydantic import PositiveInt
 
 from src.clients.cloudwatch import CloudwatchClient
-from src.config.models.input import CloudwatchConfig
+from src.config.models.input import CloudwatchConfig, CloudwatchLogsConfig
 
 
 class MockConfig(CloudwatchConfig):
@@ -12,8 +12,10 @@ class MockConfig(CloudwatchConfig):
             region="us-west-2",
             aws_access_key_id="fake_access_key",
             aws_secret_access_key="fake_secret_key",
-            log_group_name="test-log-group",
-            filter_pattern="{ $.level = 'error' }",
+            logs_config=CloudwatchLogsConfig(
+                log_group_name="test-log-group",
+                filter_pattern="{ $.level = 'error' }",
+            ),
         )
 
 
@@ -41,10 +43,10 @@ def test_query_logs_initial_query_success(mock_client):
     assert len(logs) == 2
     assert logs == [{"message": "log1"}, {"message": "log2"}]
     mock_client.return_value.filter_log_events.assert_called_once_with(
-        logGroupName=config.log_group_name,
+        logGroupName=config.logs_config.log_group_name,
         startTime=start_time,
         endTime=end_time,
-        filterPattern=config.filter_pattern,
+        filterPattern=config.logs_config.filter_pattern,
         limit=cloudwatch_client.limit,
     )
 
@@ -81,17 +83,17 @@ def test_query_logs_pagination(mock_client):
     ]
     assert mock_client.return_value.filter_log_events.call_count == 2
     mock_client.return_value.filter_log_events.assert_any_call(
-        logGroupName=config.log_group_name,
+        logGroupName=config.logs_config.log_group_name,
         startTime=start_time,
         endTime=end_time,
-        filterPattern=config.filter_pattern,
+        filterPattern=config.logs_config.filter_pattern,
         limit=cloudwatch_client.limit,
     )
     mock_client.return_value.filter_log_events.assert_any_call(
-        logGroupName=config.log_group_name,
+        logGroupName=config.logs_config.log_group_name,
         startTime=start_time,
         endTime=end_time,
-        filterPattern=config.filter_pattern,
+        filterPattern=config.logs_config.filter_pattern,
         limit=cloudwatch_client.limit,
         nextToken="next-token",
     )

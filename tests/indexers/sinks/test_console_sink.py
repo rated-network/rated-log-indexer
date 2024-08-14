@@ -22,8 +22,6 @@ def test_console_sink(test_events, capsys):
     captured = capsys.readouterr()
     output = captured.out + captured.err
 
-    print(output)
-
     assert "Worker 0: FilteredEvent(log_id='mock_log_one'" in output
     assert "Worker 0: FilteredEvent(log_id='mock_log_two'" in output
     assert "Worker 0: FilteredEvent(log_id='mock_log_three'" in output
