@@ -88,10 +88,6 @@ class LogsPartition(StatefulSourcePartition[TimeRange, None]):
 
         self.offset_tracker.update_offset(self.current_time)
 
-        logger.info(
-            f"Fetching {self.integration.value} logs from {start_time} to {head}"
-        )
-
         return TimeRange(start_time=start_time, end_time=head)
 
     def next_batch(self) -> List[TimeRange]:

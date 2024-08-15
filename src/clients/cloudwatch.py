@@ -1,9 +1,9 @@
-from typing import Any, Dict, Union, Iterator
+from typing import Any, Dict, Iterator
 
 import stamina
 from boto3 import client  # type: ignore
 from botocore.config import Config  # type: ignore
-from pydantic import PositiveInt, StrictStr
+from pydantic import PositiveInt
 
 from src.config.manager import ConfigurationManager
 from src.config.models.input import CloudwatchConfig
@@ -31,7 +31,7 @@ class CloudwatchClient:
         self,
         start_time: PositiveInt,
         end_time: PositiveInt,
-    ) -> Iterator[Union[Dict[str, Any], StrictStr]]:
+    ) -> Iterator[Dict[str, Any]]:
         logs_config = self.config.logs_config
 
         if not logs_config:

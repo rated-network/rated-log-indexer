@@ -49,7 +49,6 @@ class FilterManager:
             return FilteredEvent(
                 log_id=log_entry.log_id,
                 event_timestamp=log_entry.event_timestamp,
-                # TODO: improve this upstream to force customer_id value in config filters.
                 customer_id=parsed_log.parsed_fields.get(
                     "customer_id", "MISSING_CUSTOMER_ID"
                 ),
