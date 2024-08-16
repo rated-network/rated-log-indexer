@@ -18,6 +18,14 @@ class MockDatadogConfig(DatadogConfig):
         )
 
 
+class MockLogEntry:
+    def __init__(self, data):
+        self.data = data
+
+    def to_dict(self):
+        return self.data
+
+
 @pytest.fixture
 def mock_logs_api():
     return MagicMock()
@@ -26,7 +34,7 @@ def mock_logs_api():
 @patch("src.clients.datadog.LogsApi", autospec=True)
 def test_query_logs_initial_query_success(mock_logs_api):
     mock_response = {
-        "data": [{"message": "log1"}, {"message": "log2"}],
+        "data": [MockLogEntry({"message": "log1"}), MockLogEntry({"message": "log2"})],
         "meta": {"status": "done"},
     }
     mock_logs_api.return_value.list_logs.return_value = mock_response
@@ -47,11 +55,11 @@ def test_query_logs_initial_query_success(mock_logs_api):
 @patch("src.clients.datadog.LogsApi", autospec=True)
 def test_query_logs_pagination(mock_logs_api):
     mock_response1 = {
-        "data": [{"message": "log1"}, {"message": "log2"}],
+        "data": [MockLogEntry({"message": "log1"}), MockLogEntry({"message": "log2"})],
         "meta": {"page": {"after": "cursor1"}},
     }
     mock_response2 = {
-        "data": [{"message": "log3"}, {"message": "log4"}],
+        "data": [MockLogEntry({"message": "log3"}), MockLogEntry({"message": "log4"})],
         "meta": {"status": "done"},
     }
     mock_logs_api.return_value.list_logs.side_effect = [

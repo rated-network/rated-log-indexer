@@ -1,4 +1,4 @@
-from typing import Any, Iterator
+from typing import Any, Iterator, Dict
 
 import stamina
 from datadog_api_client.v2.model.logs_list_request import LogsListRequest
@@ -7,6 +7,7 @@ from datadog_api_client.v2.model.logs_query_filter import LogsQueryFilter
 from datadog_api_client.v2.model.logs_sort import LogsSort
 from pydantic import PositiveInt
 
+from src.config.manager import ConfigurationManager
 from src.config.models.input import DatadogConfig
 from datadog_api_client import ApiClient, Configuration
 from datadog_api_client.v2.api.logs_api import LogsApi
@@ -34,20 +35,17 @@ class DatadogClient:
     @stamina.retry(on=Exception, attempts=5)
     def query_logs(
         self, start_time: PositiveInt, end_time: PositiveInt
-    ) -> Iterator[Any]:
+    ) -> Iterator[Dict[str, Any]]:
         logs_config = self.config.logs_config
 
         if not logs_config:
             logger.error("Datadog logs configuration is missing.", exc_info=True)
             raise
 
-        start_date = from_milliseconds(start_time)
-        end_date = from_milliseconds(end_time)
-
         filter_query = LogsQueryFilter(
             indexes=logs_config.indexes,
-            _from=start_date.isoformat(),  # 2020-09-17T12:48:36+01:00
-            to=end_date.isoformat(),  # 2020-09-17T12:58:36+01:00
+            _from=str(start_time),
+            to=str(end_time),
             query=logs_config.query,
         )
         request_page = LogsListRequestPage(
@@ -67,7 +65,21 @@ class DatadogClient:
 
             try:
                 response = self.logs_api.list_logs(body=request_body)
-                data = response.get("data", [])
+                logs = response.get("data", [])
+                data = [log.to_dict() for log in logs]
+
+                logger.info(
+                    f"Fetched {len(data)} logs from Datadog",
+                    start_time=start_time,
+                    end_time=end_time,
+                    indexes=logs_config.indexes,
+                    start_time_str=from_milliseconds(start_time).strftime(
+                        "%Y-%m-%d %H:%M:%S"
+                    ),
+                    end_time_str=from_milliseconds(end_time).strftime(
+                        "%Y-%m-%d %H:%M:%S"
+                    ),
+                )
 
                 yield from data
 
@@ -77,3 +89,12 @@ class DatadogClient:
             except Exception as e:
                 logger.error(f"Failed to query logs: {e}")
                 raise e
+
+
+def get_datadog_client():
+    try:
+        config = ConfigurationManager.load_config().input.datadog
+    except Exception as e:
+        logger.error(f"Failed to load Cloudwatch configuration for client: {e}")
+        raise e
+    return DatadogClient(config)

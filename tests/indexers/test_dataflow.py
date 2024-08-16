@@ -17,7 +17,7 @@ from src.config.manager import RatedIndexerYamlConfig
 from src.indexers.dataflow import build_dataflow
 
 
-@patch("src.indexers.dataflow.fetch_cloudwatch_logs")
+@patch("src.indexers.dataflow.fetch_logs")
 @patch("src.config.manager.ConfigurationManager.load_config")
 def test_dataflow(
     mock_load_config,

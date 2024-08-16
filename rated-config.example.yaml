@@ -10,6 +10,18 @@ input:
       log_stream_name: your_log_stream_name
       filter_pattern: your_filter_pattern
 
+#  Example Datadog integration configuration - uncomment and comment out Cloudwatch to use.
+
+#  integration: datadog
+#  type: logs
+#  datadog:
+#    site: datadoghq.eu
+#    api_key: your_api_key
+#    app_key: your_app_key
+#    logs_config:
+#      indexes: [ "main" ]
+#      query: "*"
+
 output:
   type: rated
   rated:
@@ -19,7 +31,7 @@ output:
 
 filters:
   version: 1
-  log_format: "json"
+  log_format: "json_dict"
   log_example: '{"timestamp": "2022-01-01T00:00:00.000Z", "message": "Hello, Rated!"}'
   fields:
     - key: "key"
