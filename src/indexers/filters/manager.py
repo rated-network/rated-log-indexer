@@ -2,8 +2,7 @@ from typing import Optional, Any
 
 import structlog
 from rated_parser import LogParser  # type: ignore
-from rated_parser.core.payloads import RawTextLogPatternPayload, JsonLogPatternPayload  # type: ignore
-from rated_parser import LogFormat as RatedParserLogFormat  # type: ignore
+from rated_parser.payloads.inputs import RawTextLogPatternPayload, JsonLogPatternPayload, LogFormat as RatedParserLogFormat  # type: ignore
 
 from src.config.models.filters import FiltersYamlConfig
 from src.indexers.filters.types import FilteredEvent, LogEntry

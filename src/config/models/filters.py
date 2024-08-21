@@ -1,7 +1,7 @@
-from rated_parser import LogFormat as RatedParserLogFormat  # type: ignore
-from rated_parser.core.payloads import (  # type: ignore
+from rated_parser.payloads.inputs import (  # type: ignore
     JsonFieldDefinition,
     RawTextFieldDefinition,
+    LogFormat as RatedParserLogFormat,
 )
 from pydantic import BaseModel, StrictStr, StrictInt, field_validator
 from typing import List, Union, Dict
