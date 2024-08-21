@@ -1,8 +1,11 @@
 import pytest
 from pydantic import ValidationError
-from rated_parser import LogFormat as RatedParserLogFormat  # type: ignore
-from rated_parser.core.payloads import FieldType as RatedParserFieldType  # type: ignore
-from rated_parser.core.payloads import JsonFieldDefinition, RawTextFieldDefinition
+from rated_parser.payloads.inputs import (  # type: ignore
+    JsonFieldDefinition,
+    RawTextFieldDefinition,
+    FieldType as RatedParserFieldType,
+    LogFormat as RatedParserLogFormat,
+)
 from src.config.models.filters import FiltersYamlConfig
 
 

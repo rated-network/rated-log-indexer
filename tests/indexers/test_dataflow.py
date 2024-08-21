@@ -2,7 +2,7 @@ from unittest.mock import patch
 
 from bytewax.testing import run_main, TestingSource
 from pytest_httpx import HTTPXMock
-from rated_parser.core.payloads import JsonFieldDefinition, LogFormat, FieldType  # type: ignore
+from rated_parser.payloads.inputs import JsonFieldDefinition, LogFormat, FieldType  # type: ignore
 
 
 from src.indexers.filters.types import LogEntry
