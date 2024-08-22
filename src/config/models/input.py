@@ -1,7 +1,33 @@
-import enum
+from enum import Enum
 
-from pydantic import BaseModel, StrictStr, model_validator
+from pydantic import BaseModel, StrictStr, model_validator, PositiveInt
 from typing import Optional, List
+
+
+class IntegrationTypes(str, Enum):
+    CLOUDWATCH = "cloudwatch"
+    DATADOG = "datadog"
+
+
+class InputTypes(str, Enum):
+    LOGS = "logs"
+    METRICS = "metrics"
+
+
+class CloudwatchStatistic(str, Enum):
+    # These are a sample of the supported statistic types for Cloudwatch metrics, and can be expanded as needed.
+    # However, the others are more configurable, and require percentile ranges.
+    # https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/Statistics-definitions.html
+    AVERAGE = "Average"
+    MINIMUM = "Minimum"
+    MAXIMUM = "Maximum"
+    SUM = "Sum"
+    SAMPLE_COUNT = "SampleCount"
+
+
+class CloudwatchDimension(BaseModel):
+    name: StrictStr
+    value: StrictStr
 
 
 class CloudwatchLogsConfig(BaseModel):
@@ -15,11 +41,43 @@ class DatadogLogsConfig(BaseModel):
     query: StrictStr = "*"
 
 
+class CloudwatchMetricsConfig(BaseModel):
+    namespace: StrictStr
+    metric_name: StrictStr
+    period: PositiveInt
+    statistic: StrictStr
+    customer_identifier: StrictStr
+    metric_queries: List[List[CloudwatchDimension]]
+
+    @model_validator(mode="before")
+    def validate_statistic(cls, values):
+        statistic = values.get("statistic")
+        if statistic and statistic.upper() not in CloudwatchStatistic.__members__:
+            raise ValueError(
+                f'Invalid statistic found "{statistic}": please use one of {CloudwatchStatistic.__members__.keys()}'
+                # noqa
+            )
+        return values
+
+    @model_validator(mode="before")
+    def validate_metric_queries(cls, values):
+        metric_queries = values.get("metric_queries")
+        customer_identifier = values.get("customer_identifier")
+        if metric_queries:
+            for query in metric_queries:
+                if customer_identifier not in [q.name for q in query]:
+                    raise ValueError(
+                        "Customer identifier is not found in the metric query dimensions."
+                    )
+        return values
+
+
 class CloudwatchConfig(BaseModel):
     region: StrictStr
     aws_access_key_id: StrictStr
     aws_secret_access_key: StrictStr
     logs_config: Optional[CloudwatchLogsConfig] = None
+    metrics_config: Optional[CloudwatchMetricsConfig] = None
 
 
 class DatadogConfig(BaseModel):
@@ -27,16 +85,6 @@ class DatadogConfig(BaseModel):
     api_key: StrictStr
     app_key: StrictStr
     logs_config: Optional[DatadogLogsConfig] = None
-
-
-class IntegrationTypes(str, enum.Enum):
-    CLOUDWATCH = "cloudwatch"
-    DATADOG = "datadog"
-
-
-class InputTypes(str, enum.Enum):
-    LOGS = "logs"
-    METRICS = "metrics"
 
 
 class InputYamlConfig(BaseModel):

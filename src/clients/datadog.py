@@ -1,6 +1,7 @@
 from typing import Any, Iterator, Dict
 
 import stamina
+import structlog
 from datadog_api_client.v2.model.logs_list_request import LogsListRequest
 from datadog_api_client.v2.model.logs_list_request_page import LogsListRequestPage
 from datadog_api_client.v2.model.logs_query_filter import LogsQueryFilter
@@ -12,8 +13,11 @@ from src.config.models.input import DatadogConfig
 from datadog_api_client import ApiClient, Configuration
 from datadog_api_client.v2.api.logs_api import LogsApi
 
-from src.utils.logger import logger
 from src.utils.time_conversion import from_milliseconds
+
+
+logger = structlog.get_logger("datadog_client")
+
 
 PAGE_LIMIT = 1000
 SORT_METHOD = LogsSort.TIMESTAMP_ASCENDING
