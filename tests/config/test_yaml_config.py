@@ -5,7 +5,7 @@ from unittest.mock import mock_open, patch
 
 from src.config.manager import ConfigurationManager, RatedIndexerYamlConfig
 from src.config.models.offset import OffsetYamlConfig
-from src.config.models.input import InputYamlConfig
+from src.config.models.inputs.input import InputYamlConfig
 from src.config.models.output import OutputYamlConfig
 from src.config.models.secrets import SecretsYamlConfig
 

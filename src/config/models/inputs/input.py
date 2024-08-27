@@ -1,40 +1,18 @@
-import enum
+from enum import Enum
 
-from pydantic import BaseModel, StrictStr, model_validator
-from typing import Optional, List
+from pydantic import BaseModel, model_validator
+from typing import Optional
 
-
-class CloudwatchLogsConfig(BaseModel):
-    log_group_name: StrictStr
-    log_stream_name: Optional[StrictStr] = None
-    filter_pattern: Optional[StrictStr] = None
+from src.config.models.inputs.cloudwatch import CloudwatchConfig
+from src.config.models.inputs.datadog import DatadogConfig
 
 
-class DatadogLogsConfig(BaseModel):
-    indexes: List[StrictStr] = ["*"]
-    query: StrictStr = "*"
-
-
-class CloudwatchConfig(BaseModel):
-    region: StrictStr
-    aws_access_key_id: StrictStr
-    aws_secret_access_key: StrictStr
-    logs_config: Optional[CloudwatchLogsConfig] = None
-
-
-class DatadogConfig(BaseModel):
-    site: StrictStr
-    api_key: StrictStr
-    app_key: StrictStr
-    logs_config: Optional[DatadogLogsConfig] = None
-
-
-class IntegrationTypes(str, enum.Enum):
+class IntegrationTypes(str, Enum):
     CLOUDWATCH = "cloudwatch"
     DATADOG = "datadog"
 
 
-class InputTypes(str, enum.Enum):
+class InputTypes(str, Enum):
     LOGS = "logs"
     METRICS = "metrics"
 
