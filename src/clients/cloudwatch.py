@@ -9,7 +9,10 @@ from botocore.config import Config  # type: ignore
 from pydantic import PositiveInt
 
 from src.config.manager import ConfigurationManager
-from src.config.models.input import CloudwatchConfig, CloudwatchMetricsConfig
+from src.config.models.inputs.cloudwatch import (
+    CloudwatchConfig,
+    CloudwatchMetricsConfig,
+)
 from src.utils.time_conversion import from_milliseconds
 
 logger = structlog.get_logger("cloudwatch_client")

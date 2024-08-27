@@ -10,7 +10,7 @@ from src.clients.cloudwatch import get_cloudwatch_client, CloudwatchClient
 from src.indexers.filters.types import LogEntry
 from src.indexers.filters.manager import FilterManager
 from src.config.manager import RatedIndexerYamlConfig
-from src.config.models.input import IntegrationTypes
+from src.config.models.inputs.input import IntegrationTypes
 from src.config.models.output import OutputTypes
 from src.indexers.sinks.console import build_console_sink
 from src.indexers.sinks.rated import build_http_sink

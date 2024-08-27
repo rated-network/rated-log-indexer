@@ -7,7 +7,7 @@ import os
 from src.config.models.filters import FiltersYamlConfig
 from src.config.secrets.factory import SecretManagerFactory
 from src.config.models.offset import OffsetYamlConfig
-from src.config.models.input import InputYamlConfig
+from src.config.models.inputs.input import InputYamlConfig
 from src.config.models.output import OutputYamlConfig
 from src.config.models.secrets import SecretsYamlConfig
 from pydantic import BaseModel, ValidationError

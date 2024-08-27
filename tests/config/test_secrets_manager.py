@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import patch
 
-from src.config.models.input import IntegrationTypes
+from src.config.models.inputs.input import IntegrationTypes
 from src.config.manager import ConfigurationManager, RatedIndexerYamlConfig
 from src.config.models.secrets import SecretProvider
 from src.config.secrets.aws_secrets_manager import AwsSecretManager

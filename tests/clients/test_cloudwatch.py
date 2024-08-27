@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 from pydantic import PositiveInt
 
 from src.clients.cloudwatch import CloudwatchClient
-from src.config.models.input import (
+from src.config.models.inputs.cloudwatch import (
     CloudwatchConfig,
     CloudwatchLogsConfig,
     CloudwatchMetricsConfig,
@@ -25,7 +25,7 @@ class MockConfig(CloudwatchConfig):
                 namespace="test-namespace",
                 metric_name="test_metric_label",
                 period=60,
-                statistic="Average",
+                statistic="AVERAGE",
                 customer_identifier="customer_id",
                 metric_queries=[
                     [CloudwatchDimension(name="customer_id", value="customer1")],

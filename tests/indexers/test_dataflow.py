@@ -9,7 +9,7 @@ from src.indexers.filters.types import LogEntry
 from src.config.models.filters import FiltersYamlConfig
 from src.indexers.filters.manager import FilterManager
 from src.config.models.output import RatedOutputConfig
-from src.config.models.input import IntegrationTypes
+from src.config.models.inputs.input import IntegrationTypes
 from src.config.models.output import OutputTypes
 from src.indexers.sinks.rated import build_http_sink
 from src.indexers.sources.logs import TimeRange

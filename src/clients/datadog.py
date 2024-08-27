@@ -1,7 +1,25 @@
-from typing import Any, Iterator, Dict
+from typing import Any, Iterator, Dict, List
 
 import stamina
 import structlog
+from datadog_api_client.v2.api.metrics_api import MetricsApi
+from datadog_api_client.v2.model.metrics_data_source import MetricsDataSource
+from datadog_api_client.v2.model.metrics_timeseries_query import MetricsTimeseriesQuery
+from datadog_api_client.v2.model.timeseries_formula_query_request import (
+    TimeseriesFormulaQueryRequest,
+)
+from datadog_api_client.v2.model.timeseries_formula_request import (
+    TimeseriesFormulaRequest,
+)
+from datadog_api_client.v2.model.timeseries_formula_request_attributes import (
+    TimeseriesFormulaRequestAttributes,
+)
+from datadog_api_client.v2.model.timeseries_formula_request_queries import (
+    TimeseriesFormulaRequestQueries,
+)
+from datadog_api_client.v2.model.timeseries_formula_request_type import (
+    TimeseriesFormulaRequestType,
+)
 from datadog_api_client.v2.model.logs_list_request import LogsListRequest
 from datadog_api_client.v2.model.logs_list_request_page import LogsListRequestPage
 from datadog_api_client.v2.model.logs_query_filter import LogsQueryFilter
@@ -9,18 +27,26 @@ from datadog_api_client.v2.model.logs_sort import LogsSort
 from pydantic import PositiveInt
 
 from src.config.manager import ConfigurationManager
-from src.config.models.input import DatadogConfig
+from src.config.models.inputs.datadog import DatadogConfig
 from datadog_api_client import ApiClient, Configuration
 from datadog_api_client.v2.api.logs_api import LogsApi
 
 from src.utils.time_conversion import from_milliseconds
 
+PAGE_LIMIT = 1000
+SORT_METHOD = LogsSort.TIMESTAMP_ASCENDING
+DATADOG_EPOCH_LIMIT = 20_000
+
 
 logger = structlog.get_logger("datadog_client")
 
 
-PAGE_LIMIT = 1000
-SORT_METHOD = LogsSort.TIMESTAMP_ASCENDING
+class DatadogClientError(Exception):
+    """Custom exception for Cloudwatch Client errors."""
+
+    def __init__(self, message):
+        self.message = message
+        super().__init__(self.message)
 
 
 class DatadogClient:
@@ -35,6 +61,7 @@ class DatadogClient:
         )
         self.client = ApiClient(self.datadog_config)
         self.logs_api = LogsApi(self.client)
+        self.metrics_api = MetricsApi(self.client)
 
     @stamina.retry(on=Exception, attempts=5)
     def query_logs(
@@ -93,6 +120,109 @@ class DatadogClient:
             except Exception as e:
                 logger.error(f"Failed to query logs: {e}")
                 raise e
+
+    def _parse_metrics_response(self, response: Dict[str, Any]) -> List[Dict[str, Any]]:
+        metrics_config = self.config.metrics_config
+
+        if not metrics_config:
+            msg = "Datadog metrics configuration is missing."
+            logger.error(msg, exc_info=True)
+            raise DatadogClientError(msg)
+
+        data = response.get("data", {}).get("attributes", {})
+        series = data.get("series", [])
+        timestamps = data.get("times", [])
+        values = data.get("values", [])
+        query_indices = [s["query_index"] for s in series]
+        metrics_data = []
+
+        for v in values:
+            metrics_data.append(list(zip(timestamps, v)))
+
+        if not metrics_config.metric_queries:
+            msg = f"Datadog metrics queries missing for {metrics_config.metric_name}"
+            logger.error(msg, exc_info=True)
+            raise DatadogClientError(msg)
+
+        metrics_values = [
+            {
+                "customer_id": metrics_config.metric_queries[i].customer_value,
+                "query_index": i,
+                "data": [
+                    {"timestamp": timestamp, "value": value}
+                    for timestamp, value in metrics_data[idx]
+                    if value
+                ],
+            }
+            for idx, i in enumerate(query_indices)
+        ]
+
+        return metrics_values
+
+    @stamina.retry(on=Exception, attempts=5)
+    def query_metrics(
+        self, start_time: PositiveInt, end_time: PositiveInt
+    ) -> Iterator[Dict[str, Any]]:
+        metrics_config = self.config.metrics_config
+
+        if not metrics_config or not metrics_config.metric_queries:
+            msg = "Datadog metrics configuration or queries are missing."
+            logger.error(msg, exc_info=True)
+            raise DatadogClientError(msg)
+
+        queries = []
+
+        for metric_query in metrics_config.metric_queries:
+            query = MetricsTimeseriesQuery(
+                data_source=MetricsDataSource.METRICS,
+                query=metric_query.tag_string,
+                name=metric_query.customer_value,
+            )
+            queries.append(query)
+
+        formula_request = TimeseriesFormulaRequest(
+            attributes=TimeseriesFormulaRequestAttributes(
+                _from=start_time,
+                to=end_time,
+                queries=TimeseriesFormulaRequestQueries(queries),
+                interval=metrics_config.interval,
+            ),
+            type=TimeseriesFormulaRequestType.TIMESERIES_REQUEST,
+        )
+
+        request = TimeseriesFormulaQueryRequest(
+            data=formula_request,
+        )
+
+        try:
+            response = self.metrics_api.query_timeseries_data(request).to_dict()
+            data = self._parse_metrics_response(response)
+
+            flattened_data = [
+                {
+                    "customer_id": d["customer_id"],
+                    "timestamp": item["timestamp"],
+                    "value": item["value"],
+                }
+                for d in data
+                for item in d["data"]
+            ]
+
+            logger.info(
+                f"Fetched {len(flattened_data)} metrics from Datadog",
+                start_time=start_time,
+                end_time=end_time,
+                metric_name=metrics_config.metric_name,
+                start_time_str=from_milliseconds(start_time).strftime(
+                    "%Y-%m-%d %H:%M:%S"
+                ),
+                end_time_str=from_milliseconds(end_time).strftime("%Y-%m-%d %H:%M:%S"),
+            )
+
+            yield from flattened_data
+        except Exception as e:
+            logger.error(f"Failed to query metrics: {e}")
+            raise e
 
 
 def get_datadog_client():

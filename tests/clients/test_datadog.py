@@ -1,7 +1,13 @@
 import pytest
 from unittest.mock import MagicMock, patch
 
-from src.config.models.input import DatadogLogsConfig
+from pydantic import PositiveInt
+
+from src.config.models.inputs.datadog import (
+    DatadogLogsConfig,
+    DatadogTag,
+    DatadogMetricsConfig,
+)
 from src.clients.datadog import DatadogClient, DatadogConfig
 
 
@@ -14,6 +20,20 @@ class MockDatadogConfig(DatadogConfig):
             logs_config=DatadogLogsConfig(
                 indexes=["main"],
                 query="*",
+            ),
+            metrics_config=DatadogMetricsConfig(
+                metric_name="test.metric",
+                interval=60,
+                statistic="AVERAGE",
+                customer_identifier="customer",
+                metric_tag_data=[
+                    DatadogTag(
+                        customer_value="customer1", tag_string="customer:customer1"
+                    ),
+                    DatadogTag(
+                        customer_value="customer2", tag_string="customer:customer2"
+                    ),
+                ],
             ),
         )
 
@@ -116,3 +136,124 @@ def test_query_logs_empty_response(mock_logs_api):
 
     assert len(logs) == 0
     mock_logs_api.return_value.list_logs.assert_called_once()
+
+
+@patch("src.clients.datadog.MetricsApi")  # Mock the Datadog API client
+def test_query_metrics(mock_metrics_api):
+    # Mock response data from the Datadog API
+    mock_response = {
+        "data": {
+            "attributes": {
+                "series": [
+                    {
+                        "query_index": 0,
+                    },
+                    {
+                        "query_index": 1,
+                    },
+                ],
+                "times": [1625097600000, 1625097660000, 1625097720000],
+                "values": [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]],
+            }
+        }
+    }
+
+    # Configure the mock to return the mock response
+    mock_metrics_api.return_value.query_timeseries_data.return_value.to_dict.return_value = (
+        mock_response
+    )
+
+    # Create a mock config
+    mock_config = MockDatadogConfig()
+    datadog_client = DatadogClient(mock_config)
+
+    # Set example start and end times in milliseconds
+    start_time = PositiveInt(1625097600000)
+    end_time = PositiveInt(1625184000000)
+
+    # Call the query_metrics method
+    metrics = list(datadog_client.query_metrics(start_time, end_time))
+
+    # Expected metrics after processing the response
+    expected_metrics = [
+        {
+            "customer_id": "customer1",
+            "timestamp": 1625097600000,
+            "value": 1.0,
+        },
+        {
+            "customer_id": "customer1",
+            "timestamp": 1625097660000,
+            "value": 2.0,
+        },
+        {
+            "customer_id": "customer1",
+            "timestamp": 1625097720000,
+            "value": 3.0,
+        },
+        {
+            "customer_id": "customer2",
+            "timestamp": 1625097600000,
+            "value": 4.0,
+        },
+        {
+            "customer_id": "customer2",
+            "timestamp": 1625097660000,
+            "value": 5.0,
+        },
+        {
+            "customer_id": "customer2",
+            "timestamp": 1625097720000,
+            "value": 6.0,
+        },
+    ]
+
+    # Assertions
+    assert len(metrics) == len(expected_metrics)
+    assert metrics == expected_metrics
+
+    # Ensure the mock API call was made once
+    assert mock_metrics_api.return_value.query_timeseries_data.call_count == 1
+
+
+def test_parse_metrics_response():
+    # Instantiate the mock config
+    mock_config = MockDatadogConfig()
+
+    # Mock response to simulate Datadog API response
+    mock_response = {
+        "data": {
+            "attributes": {
+                "series": [{"query_index": 0}, {"query_index": 1}],
+                "times": [1625097600000, 1625097660000, 1625097720000],
+                "values": [
+                    [1.0, 2.0, None],  # Corresponds to query_index 0
+                    [None, None, 3.0],  # Corresponds to query_index 1
+                ],
+            }
+        }
+    }
+
+    datadog_client = DatadogClient(mock_config)
+    metrics = datadog_client._parse_metrics_response(mock_response)
+
+    # Define the expected output
+    expected_metrics = [
+        {
+            "customer_id": "customer1",
+            "query_index": 0,
+            "data": [
+                {"timestamp": 1625097600000, "value": 1.0},
+                {"timestamp": 1625097660000, "value": 2.0},
+            ],
+        },
+        {
+            "customer_id": "customer2",
+            "query_index": 1,
+            "data": [{"timestamp": 1625097720000, "value": 3.0}],
+        },
+    ]
+
+    assert (
+        metrics == expected_metrics
+    ), f"Expected {expected_metrics}, but got {metrics}"
