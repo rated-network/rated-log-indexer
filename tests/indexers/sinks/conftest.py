@@ -12,7 +12,7 @@ def test_events():
     logs = [
         {
             "customer_id": "customer_id_one",
-            "log_id": "mock_log_one",
+            "event_id": "mock_log_one",
             "event_timestamp": datetime.fromtimestamp(
                 1723041096000 / 1000, tz=timezone.utc
             ),
@@ -20,7 +20,7 @@ def test_events():
         },
         {
             "customer_id": "customer_id_two",
-            "log_id": "mock_log_two",
+            "event_id": "mock_log_two",
             "event_timestamp": datetime.fromtimestamp(
                 1723041096100 / 1000, tz=timezone.utc
             ),
@@ -28,7 +28,7 @@ def test_events():
         },
         {
             "customer_id": "customer_id_three",
-            "log_id": "mock_log_three",
+            "event_id": "mock_log_three",
             "event_timestamp": datetime.fromtimestamp(
                 1723041096200 / 1000, tz=timezone.utc
             ),

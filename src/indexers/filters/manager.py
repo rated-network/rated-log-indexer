@@ -16,7 +16,7 @@ def parse_and_filter_metrics(metrics_entry: Any) -> Optional[FilteredEvent]:
     """
     try:
         return FilteredEvent(
-            log_id=None,
+            event_id=f"{metrics_entry.metric_name}_{metrics_entry.customer_id}_{metrics_entry.event_timestamp}",
             event_timestamp=metrics_entry.event_timestamp,
             customer_id=metrics_entry.customer_id,
             values={metrics_entry.metric_name: metrics_entry.value},
@@ -63,7 +63,7 @@ class FilterManager:
                 return None
 
             return FilteredEvent(
-                log_id=log_entry.log_id,
+                event_id=log_entry.log_id,
                 event_timestamp=log_entry.event_timestamp,
                 customer_id=parsed_log.parsed_fields.get(
                     "customer_id", "MISSING_CUSTOMER_ID"

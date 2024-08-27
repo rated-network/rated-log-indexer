@@ -16,7 +16,7 @@ from src.config.models.output import RatedOutputConfig
 from src.config.models.inputs.input import IntegrationTypes, InputTypes
 from src.config.models.output import OutputTypes
 from src.indexers.sinks.rated import build_http_sink
-from src.indexers.sources.logs import TimeRange
+from src.indexers.sources.rated import TimeRange
 from src.config.manager import RatedIndexerYamlConfig
 from src.indexers.dataflow import build_dataflow
 

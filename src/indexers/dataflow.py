@@ -14,7 +14,7 @@ from src.config.models.inputs.input import IntegrationTypes, InputTypes
 from src.config.models.output import OutputTypes
 from src.indexers.sinks.console import build_console_sink
 from src.indexers.sinks.rated import build_http_sink
-from src.indexers.sources.logs import LogsSource, TimeRange
+from src.indexers.sources.rated import RatedSource, TimeRange
 from src.utils.logger import logger
 
 
@@ -85,7 +85,7 @@ def parse_config(
     output_config = config.output
     filter_config = config.filters
 
-    input_source = LogsSource()
+    input_source = RatedSource()
     filter_logic = (
         FilterManager(filter_config).parse_and_filter_log
         if input_config.type == InputTypes.LOGS.value

@@ -1,7 +1,7 @@
 import json
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Dict, Any, Union, Optional
+from typing import Dict, Any, Union
 
 from src.utils.logger import logger
 from src.utils.time_conversion import from_milliseconds
@@ -100,7 +100,7 @@ class MetricEntry:
 
 @dataclass
 class FilteredEvent:
-    log_id: Optional[str]
+    event_id: str
     event_timestamp: datetime
     customer_id: str
     values: dict

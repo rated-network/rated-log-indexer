@@ -17,7 +17,7 @@ class TimeRange(BaseModel):
     end_time: PositiveInt
 
 
-class LogsPartition(StatefulSourcePartition[TimeRange, None]):
+class RatedPartition(StatefulSourcePartition[TimeRange, None]):
     def __init__(self) -> None:
         self._next_awake = datetime.now(timezone.utc)
 
@@ -108,7 +108,7 @@ class LogsPartition(StatefulSourcePartition[TimeRange, None]):
         return None
 
 
-class LogsSource(FixedPartitionedSource[TimeRange, None]):
+class RatedSource(FixedPartitionedSource[TimeRange, None]):
     """
     Yields time ranges. Continuously polls the source for the new head,
     emits a safe range to fetch
@@ -122,4 +122,4 @@ class LogsSource(FixedPartitionedSource[TimeRange, None]):
 
     def build_part(self, step_id: StrictStr, for_key: StrictStr, resume_state: Any):
         assert for_key == "single-part"
-        return LogsPartition()
+        return RatedPartition()
