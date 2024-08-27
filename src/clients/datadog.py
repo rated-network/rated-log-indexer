@@ -146,6 +146,7 @@ class DatadogClient:
 
         metrics_values = [
             {
+                "metric_name": metrics_config.metric_name,
                 "customer_id": metrics_config.metric_queries[i].customer_value,
                 "query_index": i,
                 "data": [
@@ -200,6 +201,7 @@ class DatadogClient:
 
             flattened_data = [
                 {
+                    "metric_name": d["metric_name"],
                     "customer_id": d["customer_id"],
                     "timestamp": item["timestamp"],
                     "value": item["value"],
