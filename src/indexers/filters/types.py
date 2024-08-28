@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from typing import Dict, Any, Union
 
 from src.utils.logger import logger
+from src.utils.time_conversion import from_milliseconds
 
 
 @dataclass
@@ -70,8 +71,36 @@ class LogEntry:
 
 
 @dataclass
+class MetricEntry:
+    metric_name: str
+    value: float
+    customer_id: str
+    event_timestamp: datetime
+
+    @classmethod
+    def from_cloudwatch_metric(cls, metric: Dict[str, Any]) -> "MetricEntry":
+        return cls(
+            metric_name=metric["label"],
+            value=metric["value"],
+            customer_id=metric["customer_id"],
+            event_timestamp=metric[
+                "timestamp"
+            ],  # TODO: Check if datetime conversion is necessary
+        )
+
+    @classmethod
+    def from_datadog_metric(cls, metric: Dict[str, Any]) -> "MetricEntry":
+        return cls(
+            metric_name=metric["metric_name"],
+            value=metric["value"],
+            customer_id=metric["customer_id"],
+            event_timestamp=from_milliseconds(metric["timestamp"]),
+        )
+
+
+@dataclass
 class FilteredEvent:
-    log_id: str
+    event_id: str
     event_timestamp: datetime
     customer_id: str
     values: dict

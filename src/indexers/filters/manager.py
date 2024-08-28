@@ -10,6 +10,23 @@ from src.indexers.filters.types import FilteredEvent, LogEntry
 logger = structlog.getLogger(__name__)
 
 
+def parse_and_filter_metrics(metrics_entry: Any) -> Optional[FilteredEvent]:
+    """
+    Returns parsed fields dictionary from the metrics entry if the metrics entry is successfully parsed and filtered.
+    """
+    try:
+        return FilteredEvent(
+            event_id=f"{metrics_entry.metric_name}_{metrics_entry.customer_id}_{metrics_entry.event_timestamp}",
+            event_timestamp=metrics_entry.event_timestamp,
+            customer_id=metrics_entry.customer_id,
+            values={metrics_entry.metric_name: metrics_entry.value},
+        )
+
+    except Exception as e:
+        logger.error("Parsing error", metric_content=metrics_entry, error=str(e))
+        return None
+
+
 class FilterManager:
     def __init__(self, filter_config: FiltersYamlConfig):
         self.log_parser = LogParser()
@@ -46,7 +63,7 @@ class FilterManager:
                 return None
 
             return FilteredEvent(
-                log_id=log_entry.log_id,
+                event_id=log_entry.log_id,
                 event_timestamp=log_entry.event_timestamp,
                 customer_id=parsed_log.parsed_fields.get(
                     "customer_id", "MISSING_CUSTOMER_ID"
@@ -57,7 +74,3 @@ class FilterManager:
         except Exception as e:
             logger.error("Parsing error", log_content=log_entry.content, error=str(e))
             return None
-
-    def parse_and_filter_metrics(self, metrics_entry: Any) -> Optional[FilteredEvent]:
-        # TODO: Implement metrics parsing and filtering
-        raise NotImplementedError("Metrics parsing and filtering not yet implemented")

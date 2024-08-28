@@ -177,31 +177,37 @@ def test_query_metrics(mock_metrics_api):
     # Expected metrics after processing the response
     expected_metrics = [
         {
+            "metric_name": "test.metric",
             "customer_id": "customer1",
             "timestamp": 1625097600000,
             "value": 1.0,
         },
         {
+            "metric_name": "test.metric",
             "customer_id": "customer1",
             "timestamp": 1625097660000,
             "value": 2.0,
         },
         {
+            "metric_name": "test.metric",
             "customer_id": "customer1",
             "timestamp": 1625097720000,
             "value": 3.0,
         },
         {
+            "metric_name": "test.metric",
             "customer_id": "customer2",
             "timestamp": 1625097600000,
             "value": 4.0,
         },
         {
+            "metric_name": "test.metric",
             "customer_id": "customer2",
             "timestamp": 1625097660000,
             "value": 5.0,
         },
         {
+            "metric_name": "test.metric",
             "customer_id": "customer2",
             "timestamp": 1625097720000,
             "value": 6.0,
@@ -240,6 +246,7 @@ def test_parse_metrics_response():
     # Define the expected output
     expected_metrics = [
         {
+            "metric_name": "test.metric",
             "customer_id": "customer1",
             "query_index": 0,
             "data": [
@@ -248,6 +255,7 @@ def test_parse_metrics_response():
             ],
         },
         {
+            "metric_name": "test.metric",
             "customer_id": "customer2",
             "query_index": 1,
             "data": [{"timestamp": 1625097720000, "value": 3.0}],
