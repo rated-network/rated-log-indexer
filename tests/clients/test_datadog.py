@@ -1,11 +1,13 @@
 import pytest
 from unittest.mock import MagicMock, patch
 
+from datadog_api_client.v2.model.timeseries_response_values import (
+    TimeseriesResponseValues,
+)
 from pydantic import PositiveInt
 
 from src.config.models.inputs.datadog import (
     DatadogLogsConfig,
-    DatadogTag,
     DatadogMetricsConfig,
 )
 from src.clients.datadog import DatadogClient, DatadogConfig
@@ -26,13 +28,9 @@ class MockDatadogConfig(DatadogConfig):
                 interval=60,
                 statistic="AVERAGE",
                 customer_identifier="customer",
-                metric_tag_data=[
-                    DatadogTag(
-                        customer_value="customer1", tag_string="customer:customer1"
-                    ),
-                    DatadogTag(
-                        customer_value="customer2", tag_string="customer:customer2"
-                    ),
+                metric_tag_data=[  # type: ignore
+                    {"customer_value": "customer1", "tag_string": "customer:customer1"},
+                    {"customer_value": "customer2", "tag_string": "customer:customer2"},
                 ],
             ),
         )
@@ -153,7 +151,10 @@ def test_query_metrics(mock_metrics_api):
                     },
                 ],
                 "times": [1625097600000, 1625097660000, 1625097720000],
-                "values": [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]],
+                "values": [
+                    TimeseriesResponseValues([1.0, 2.0, 3.0]),
+                    TimeseriesResponseValues([4.0, 5.0, 6.0]),
+                ],
             }
         }
     }
@@ -233,8 +234,12 @@ def test_parse_metrics_response():
                 "series": [{"query_index": 0}, {"query_index": 1}],
                 "times": [1625097600000, 1625097660000, 1625097720000],
                 "values": [
-                    [1.0, 2.0, None],  # Corresponds to query_index 0
-                    [None, None, 3.0],  # Corresponds to query_index 1
+                    TimeseriesResponseValues(
+                        [1.0, 2.0, None]
+                    ),  # Corresponds to query_index 0
+                    TimeseriesResponseValues(
+                        [None, None, 3.0]
+                    ),  # Corresponds to query_index 1
                 ],
             }
         }

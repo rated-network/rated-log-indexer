@@ -51,7 +51,7 @@ class CloudwatchMetricsConfig(BaseModel):
         customer_identifier = values.get("customer_identifier")
         if metric_queries:
             for query in metric_queries:
-                if customer_identifier not in [q.name for q in query]:
+                if customer_identifier not in [q["name"] for q in query]:
                     raise ValueError(
                         "Customer identifier is not found in the metric query dimensions."
                     )

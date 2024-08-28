@@ -6,6 +6,7 @@ from rated_parser.payloads.inputs import RawTextLogPatternPayload, JsonLogPatter
 
 from src.config.models.filters import FiltersYamlConfig
 from src.indexers.filters.types import FilteredEvent, LogEntry
+from src.utils.time_conversion import to_milliseconds
 
 logger = structlog.getLogger(__name__)
 
@@ -16,7 +17,7 @@ def parse_and_filter_metrics(metrics_entry: Any) -> Optional[FilteredEvent]:
     """
     try:
         return FilteredEvent(
-            event_id=f"{metrics_entry.metric_name}_{metrics_entry.customer_id}_{metrics_entry.event_timestamp}",
+            event_id=f"{metrics_entry.metric_name}_{metrics_entry.customer_id}_{to_milliseconds(metrics_entry.event_timestamp)}",
             event_timestamp=metrics_entry.event_timestamp,
             customer_id=metrics_entry.customer_id,
             values={metrics_entry.metric_name: metrics_entry.value},

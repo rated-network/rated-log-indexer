@@ -148,14 +148,13 @@ class CloudwatchClient:
         ]
         queries: List[Dict[str, Any]] = [
             {
-                "Id": f"{metrics_config.metric_name}_query_{idx}",
+                "Id": f"{str(metrics_config.metric_name).lower()}_query_{idx}",
                 "MetricStat": {
                     "Metric": metric,
                     "Period": metrics_config.period,
                     "Stat": metrics_config.statistic,
                 },
                 "ReturnData": True,
-                "Period": metrics_config.period,
             }
             for idx, metric in enumerate(metrics)
         ]
