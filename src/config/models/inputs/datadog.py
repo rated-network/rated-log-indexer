@@ -40,31 +40,37 @@ class DatadogMetricsConfig(BaseModel):
         return values
 
     @model_validator(mode="before")
+    def convert_interval(cls, values):
+        interval = values.get("interval")
+        values["interval"] = interval * 1000
+        return values
+
+    @model_validator(mode="before")
     def validate_metric_tag_data(cls, values):
         metric_tag_data = values.get("metric_tag_data")
         customer_identifier = values.get("customer_identifier")
         for tag in metric_tag_data:
-            customer_string = f"{customer_identifier}:{tag.customer_value}"
-            if customer_string not in tag.tag_string:
+            customer_string = f"{customer_identifier}:{tag['customer_value']}"
+            if customer_string not in tag["tag_string"]:
                 raise ValueError(
                     "Customer identifier is not found in the metric tag string."
                 )
         return values
 
-    @model_validator(mode="before")
-    def generate_metric_queries(cls, values):
-        metric_name = values.get("metric_name")
-        metric_statistic = values.get("statistic")
+    @model_validator(mode="after")
+    def generate_metric_queries(self):
+        metric_name = self.metric_name
+        metric_statistic = self.statistic
         metric_value = DatadogStatistic[metric_statistic].value
-        tag_data = values.get("metric_tag_data")
-        values["metric_queries"] = [
+        tag_data = self.metric_tag_data
+        self.metric_queries = [
             DatadogTag(
                 customer_value=tag.customer_value,
                 tag_string=f"{metric_value}:{metric_name}{{{tag.tag_string}}}",
             )
             for tag in tag_data
         ]
-        return values
+        return self
 
 
 class DatadogConfig(BaseModel):

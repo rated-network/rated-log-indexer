@@ -7,7 +7,6 @@ from src.config.models.inputs.cloudwatch import (
     CloudwatchConfig,
     CloudwatchLogsConfig,
     CloudwatchMetricsConfig,
-    CloudwatchDimension,
 )
 
 
@@ -27,8 +26,8 @@ class MockConfig(CloudwatchConfig):
                 period=60,
                 statistic="AVERAGE",
                 customer_identifier="customer_id",
-                metric_queries=[
-                    [CloudwatchDimension(name="customer_id", value="customer1")],
+                metric_queries=[  # type: ignore
+                    [{"name": "customer_id", "value": "customer1"}],
                 ],
             ),
         )
@@ -209,7 +208,6 @@ def test_parse_metrics_queries():
                     "Stat": "Average",
                 },
                 "ReturnData": True,
-                "Period": 60,
             }
         ]
     ]

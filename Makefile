@@ -10,8 +10,13 @@ build:  ## Build the Docker container
 up: ## Start services
 	@docker compose up -d --force-recreate indexer db redis
 
+.PHONY: down
 down: ## Stop services
 	@docker compose down
+
+.PHONY: remove
+remove: ## Remove containers, images, networks, and volumes
+	@docker compose down --rmi all --volumes --remove-orphans
 
 .PHONY: logs
 logs: ## Output container logs. For one specific service use services variable. Example: `make logs services="app"

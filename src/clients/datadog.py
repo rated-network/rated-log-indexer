@@ -63,6 +63,8 @@ class DatadogClient:
         self.logs_api = LogsApi(self.client)
         self.metrics_api = MetricsApi(self.client)
 
+        self.datadog_config.unstable_operations["query_timeseries_data"] = True
+
     @stamina.retry(on=Exception, attempts=5)
     def query_logs(
         self, start_time: PositiveInt, end_time: PositiveInt
@@ -137,7 +139,13 @@ class DatadogClient:
         metrics_data = []
 
         for v in values:
-            metrics_data.append(list(zip(timestamps, v)))
+            try:
+                value_list = v.__dict__["_data_store"]["value"]
+                metrics_data.append(list(zip(timestamps, value_list)))
+            except Exception as e:
+                msg = f"Failed to parse metrics response: {e}"
+                logger.error(msg, exc_info=True)
+                raise DatadogClientError(msg)
 
         if not metrics_config.metric_queries:
             msg = f"Datadog metrics queries missing for {metrics_config.metric_name}"
@@ -198,6 +206,8 @@ class DatadogClient:
         try:
             response = self.metrics_api.query_timeseries_data(request).to_dict()
             data = self._parse_metrics_response(response)
+
+            logger.info(data)
 
             flattened_data = [
                 {
