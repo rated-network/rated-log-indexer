@@ -3,8 +3,18 @@ from datetime import datetime, timezone
 from io import StringIO
 
 import pytest
+from pytest_httpx import HTTPXMock
 
+from src.config.models.output import RatedOutputConfig
+from src.indexers.sinks.rated import build_http_sink
 from src.indexers.filters.types import FilteredEvent
+from freezegun import freeze_time
+
+
+@pytest.fixture
+def mocked_time():
+    with freeze_time("2024-09-03 12:00:00") as frozen_time:
+        yield frozen_time
 
 
 @pytest.fixture
@@ -36,6 +46,22 @@ def test_events():
         },
     ]
     return [FilteredEvent(**log) for log in logs]
+
+
+@pytest.fixture
+def http_sink(httpx_mock: HTTPXMock):
+    endpoint = "https://your_ingestion_url.com"
+    httpx_mock.add_response(
+        method="POST",
+        url=f"{endpoint}/your_ingestion_id/your_ingestion_key",
+        status_code=200,
+    )
+    output_config = RatedOutputConfig(
+        ingestion_id="your_ingestion_id",
+        ingestion_key="your_ingestion_key",
+        ingestion_url=endpoint,
+    )
+    return build_http_sink(output_config)
 
 
 @pytest.fixture
