@@ -1,3 +1,4 @@
+import json
 from unittest.mock import patch
 
 from bytewax.testing import run_main, TestingSource
@@ -95,7 +96,11 @@ def test_logs_dataflow(
 
     mock_fetch_cloudwatch_logs.assert_called()
     requests = httpx_mock.get_requests()
-    assert len(requests) == 2
+    assert len(requests) == 1, "There should be 1 request (batched)"
+
+    request = requests[0]
+    body = json.loads(request.content)
+    assert len(body) == 2, "2 events should have been batched"
 
 
 @patch("src.indexers.dataflow.fetch_metrics")
@@ -186,4 +191,8 @@ def test_metrics_dataflow(
 
     mock_fetch_metrics.assert_called()
     requests = httpx_mock.get_requests()
-    assert len(requests) == 4
+    assert len(requests) == 1, "There should be 1 request (batched)"
+
+    request = requests[0]
+    body = json.loads(request.content)
+    assert len(body) == 4, "4 events should have been batched"
