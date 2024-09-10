@@ -1,26 +1,48 @@
 input:
-  integration: cloudwatch
-  type: logs
-  cloudwatch:
-    region: us-east-1
-    aws_access_key_id: your_aws_access_key_id
-    aws_secret_access_key: your_aws_secret_access_key
-    logs_config:
-      log_group_name: your_log_group_name
-      log_stream_name: your_log_stream_name
-      filter_pattern: your_filter_pattern
+  - integration: cloudwatch
+    type: logs
+    cloudwatch:
+      region: us-east-1
+      aws_access_key_id: your_aws_access_key_id
+      aws_secret_access_key: your_aws_secret_access_key
+      logs_config:
+        log_group_name: your_log_group_name
+        log_stream_name: your_log_stream_name
+        filter_pattern: your_filter_pattern
+    filters:
+      version: 1
+      log_format: "json_dict"
+      log_example: '{"timestamp": "2022-01-01T00:00:00.000Z", "message": "Hello, Rated from CloudWatch!"}'
+      fields:
+        - key: "timestamp"
+          field_type: "string"
+          path: "timestamp"
+        - key: "message"
+          field_type: "string"
+          path: "message"
 
 #  Example Datadog integration configuration - uncomment and comment out Cloudwatch to use.
 
-#  integration: datadog
-#  type: logs
-#  datadog:
-#    site: datadoghq.eu
-#    api_key: your_api_key
-#    app_key: your_app_key
-#    logs_config:
-#      indexes: [ "main" ]
-#      query: "*"
+#  - integration: datadog
+#    type: logs
+#    datadog:
+#      site: datadoghq.eu
+#      api_key: your_datadog_api_key
+#      app_key: your_datadog_app_key
+#      logs_config:
+#        indexes: [ "main" ]
+#        query: "*"
+#    filters:
+#      version: 1
+#      log_format: "json_dict"
+#      log_example: '{"timestamp": "2022-01-01T00:00:00.000Z", "message": "Hello, Rated from Datadog!"}'
+#      fields:
+#        - key: "timestamp"
+#          field_type: "string"
+#          path: "timestamp"
+#        - key: "message"
+#          field_type: "string"
+#          path: "message"
 
 output:
   type: rated
@@ -29,14 +51,6 @@ output:
     ingestion_key: your_ingestion_key
     ingestion_url: https://rated.live/v1/ingest
 
-filters:
-  version: 1
-  log_format: "json_dict"
-  log_example: '{"timestamp": "2022-01-01T00:00:00.000Z", "message": "Hello, Rated!"}'
-  fields:
-    - key: "key"
-      value: "value"
-      field_type: "string"
 
 offset:
   type: postgres

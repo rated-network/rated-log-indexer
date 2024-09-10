@@ -9,7 +9,6 @@ from src.config.models.inputs.cloudwatch import CloudwatchConfig
 from src.config.models.inputs.datadog import (
     DatadogConfig,
     DatadogMetricsConfig,
-    DatadogTag,
 )
 from src.indexers.filters.types import LogEntry, MetricEntry
 from src.config.models.filters import FiltersYamlConfig
@@ -132,8 +131,8 @@ def test_metrics_dataflow(
             statistic="AVERAGE",
             customer_identifier="customer",
             metric_tag_data=[
-                DatadogTag(customer_value="customer1", tag_string="customer:customer1"),
-                DatadogTag(customer_value="customer2", tag_string="customer:customer2"),
+                {"customer_value": "customer1", "tag_string": "customer:customer1"},  # type: ignore
+                {"customer_value": "customer2", "tag_string": "customer:customer2"},  # type: ignore
             ],
         ),
     )
