@@ -21,16 +21,13 @@ class RatedPartition(StatefulSourcePartition[TimeRange, None]):
     def __init__(self) -> None:
         self._next_awake = datetime.now(timezone.utc)
 
-        self.config = ConfigurationManager().load_config().input
-        self.integration = self.config.integration
+        self.config = ConfigurationManager().load_config().inputs
 
         self.offset_tracker, self.config_start_from = get_offset_tracker()
 
         self.current_time = self._get_current_offset()
         self.timestamp = from_milliseconds(self.current_time)
-        logger.info(
-            f"Starting {self.integration.value} indexing from {(self.current_time, self.timestamp)}"
-        )
+        logger.info(f"Indexing from {(self.current_time, self.timestamp)}")
 
     def _get_current_offset(self) -> PositiveInt:
         """

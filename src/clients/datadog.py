@@ -239,7 +239,7 @@ class DatadogClient:
 
 def get_datadog_client():
     try:
-        config = ConfigurationManager.load_config().input.datadog
+        config = ConfigurationManager.load_config().inputs.datadog
     except Exception as e:
         logger.error(f"Failed to load Cloudwatch configuration for client: {e}")
         raise e

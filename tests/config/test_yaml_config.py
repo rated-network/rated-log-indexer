@@ -15,20 +15,22 @@ def test_load_config_valid(valid_config_yaml):
         with patch.object(os.path, "exists", return_value=True):
             config = ConfigurationManager.load_config()
 
-            assert config.input.cloudwatch is not None
+            assert config.inputs[0].cloudwatch is not None
             assert config.output.rated is not None
             assert config.offset.postgres is not None
 
             assert isinstance(config, RatedIndexerYamlConfig)
-            assert isinstance(config.input, InputYamlConfig)
+            assert isinstance(config.inputs[0], InputYamlConfig)
             assert isinstance(config.output, OutputYamlConfig)
             assert isinstance(config.offset, OffsetYamlConfig)
             assert isinstance(config.secrets, SecretsYamlConfig)
 
-            assert config.input.integration == "cloudwatch"
-            assert config.input.type == "logs"
-            assert config.input.cloudwatch.region == "us-east-1"
-            assert config.input.cloudwatch.logs_config.log_group_name == "my-log-group"
+            assert config.inputs[0].integration == "cloudwatch"
+            assert config.inputs[0].type == "logs"
+            assert config.inputs[0].cloudwatch.region == "us-east-1"
+            assert (
+                config.inputs[0].cloudwatch.logs_config.log_group_name == "my-log-group"
+            )
 
             assert config.output.type == "rated"
             assert config.output.rated.ingestion_id == "your_ingestion_id"
@@ -63,7 +65,7 @@ def test_load_config_invalid_yaml():
 
 def test_get_config_invalid_input_type(valid_config_dict):
     invalid_config = valid_config_dict.copy()
-    invalid_config["input"] = {
+    invalid_config["inputs"][0] = {
         "type": "invalid_source",
     }
 
@@ -82,7 +84,7 @@ def test_get_config_invalid_input_type(valid_config_dict):
 
 def test_get_config_missing_input_config(valid_config_dict):
     invalid_config = valid_config_dict.copy()
-    invalid_config["input"] = {
+    invalid_config["inputs"][0] = {
         "integration": "cloudwatch",
     }
 

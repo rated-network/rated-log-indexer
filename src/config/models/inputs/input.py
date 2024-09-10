@@ -3,6 +3,7 @@ from enum import Enum
 from pydantic import BaseModel, model_validator
 from typing import Optional
 
+from src.config.models.filters import FiltersYamlConfig
 from src.config.models.inputs.cloudwatch import CloudwatchConfig
 from src.config.models.inputs.datadog import DatadogConfig
 
@@ -20,6 +21,8 @@ class InputTypes(str, Enum):
 class InputYamlConfig(BaseModel):
     integration: IntegrationTypes
     type: InputTypes
+    filters: FiltersYamlConfig
+
     cloudwatch: Optional[CloudwatchConfig] = None
     datadog: Optional[DatadogConfig] = None
 

@@ -13,14 +13,15 @@ class SecretManager(ABC):
 
     def resolve_secrets(self, config) -> None:
         logger.info("Starting secrets resolution process")
-        config_dict = config.model_dump(exclude={"secrets"})
+        config_dict = config.model_dump()
         updated_config = self._resolve_secrets_in_dict(config_dict)
 
         for key, value in updated_config.items():
-            if isinstance(getattr(config, key), BaseModel):
-                self._update_nested_model(getattr(config, key), value)
-            else:
-                setattr(config, key, value)
+            if key != "secrets":  # Skip the secrets configuration itself
+                if isinstance(getattr(config, key), BaseModel):
+                    self._update_nested_model(getattr(config, key), value)
+                else:
+                    setattr(config, key, value)
 
         logger.info("Completed secrets resolution process")
 
@@ -28,7 +29,9 @@ class SecretManager(ABC):
         self, model: BaseModel, updated_data: Dict[str, Any]
     ) -> None:
         for key, value in updated_data.items():
-            if isinstance(getattr(model, key, None), BaseModel):
+            if isinstance(value, dict) and isinstance(
+                getattr(model, key, None), BaseModel
+            ):
                 self._update_nested_model(getattr(model, key), value)
             else:
                 setattr(model, key, value)
@@ -37,6 +40,8 @@ class SecretManager(ABC):
         def resolve_value(value):
             if isinstance(value, dict):
                 return {k: resolve_value(v) for k, v in value.items()}
+            elif isinstance(value, list):
+                return [resolve_value(item) for item in value]
             elif isinstance(value, str) and value.startswith("secret:"):
                 secret_id = value.split(":", 1)[1]
                 resolved_value = self.resolve_secret(secret_id)
@@ -46,6 +51,8 @@ class SecretManager(ABC):
                 return resolved_value
             return value
 
-        resolved_dict = {k: resolve_value(v) for k, v in config_dict.items()}
+        resolved_dict = {
+            k: resolve_value(v) for k, v in config_dict.items() if k != "secrets"
+        }
 
         return resolved_dict

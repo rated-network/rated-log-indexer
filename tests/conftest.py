@@ -9,42 +9,44 @@ from src.config.manager import ConfigurationManager
 @pytest.fixture
 def valid_config_dict():
     return {
-        "input": {
-            "integration": "cloudwatch",
-            "type": "logs",
-            "cloudwatch": {
-                "region": "us-east-1",
-                "aws_access_key_id": "fake_access_key",
-                "aws_secret_access_key": "fake_secret_key",
-                "logs_config": {
-                    "log_group_name": "my-log-group",
-                    "filter_pattern": "*",
+        "inputs": [
+            {
+                "integration": "cloudwatch",
+                "type": "logs",
+                "filters": {
+                    "version": 1,
+                    "log_format": "json_dict",
+                    "log_example": {
+                        "timestamp": "2023-08-07T10:15:30Z",
+                        "level": "INFO",
+                        "message": "User logged in",
+                    },
+                    "fields": [
+                        {
+                            "key": "example_key",
+                            "value": "example_value",
+                            "field_type": "string",
+                            "path": "payload.example_key",
+                        },
+                        {
+                            "key": "customer_id",
+                            "value": "customer_id_value",
+                            "field_type": "string",
+                            "path": "payload.customer_id",
+                        },
+                    ],
                 },
-            },
-        },
-        "filters": {
-            "version": 1,
-            "log_format": "json_dict",
-            "log_example": {
-                "timestamp": "2023-08-07T10:15:30Z",
-                "level": "INFO",
-                "message": "User logged in",
-            },
-            "fields": [
-                {
-                    "key": "example_key",
-                    "value": "example_value",
-                    "field_type": "string",
-                    "path": "payload.example_key",
+                "cloudwatch": {
+                    "region": "us-east-1",
+                    "aws_access_key_id": "fake_access_key",
+                    "aws_secret_access_key": "fake_secret_key",
+                    "logs_config": {
+                        "log_group_name": "my-log-group",
+                        "filter_pattern": "*",
+                    },
                 },
-                {
-                    "key": "customer_id",
-                    "value": "customer_id_value",
-                    "field_type": "string",
-                    "path": "payload.customer_id",
-                },
-            ],
-        },
+            }
+        ],
         "output": {
             "type": "rated",
             "rated": {

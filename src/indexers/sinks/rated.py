@@ -128,6 +128,8 @@ class _HTTPSinkPartition(StatelessSinkPartition):
         except httpx.HTTPError as e:
             logger.error(f"Worker {self.worker_index} HTTP error: {e}", items=items)
             raise
+        except Exception as e:
+            logger.error(f"Worker {self.worker_index} error: {e}", items=items)
 
     async def flush_batch(self) -> None:
         """
