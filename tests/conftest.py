@@ -45,6 +45,19 @@ def valid_config_dict():
                         "filter_pattern": "*",
                     },
                 },
+                "offset": {
+                    "type": "postgres",
+                    "start_from": 123456789,
+                    "start_from_type": "bigint",
+                    "postgres": {
+                        "table_name": "offset_tracking",
+                        "host": "db",
+                        "port": 5432,
+                        "database": "test_db",
+                        "user": "user",
+                        "password": "password",
+                    },
+                },
             }
         ],
         "output": {
@@ -53,19 +66,6 @@ def valid_config_dict():
                 "ingestion_id": "your_ingestion_id",
                 "ingestion_key": "your_ingestion_key",
                 "ingestion_url": "https://your_ingestion_url.com",
-            },
-        },
-        "offset": {
-            "type": "postgres",
-            "start_from": 123456789,
-            "start_from_type": "bigint",
-            "postgres": {
-                "table_name": "offset_tracking",
-                "host": "db",
-                "port": 5432,
-                "database": "test_db",
-                "user": "user",
-                "password": "password",
             },
         },
         "secrets": {"use_secrets_manager": False},

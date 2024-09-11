@@ -45,6 +45,19 @@ def valid_config_with_secrets(valid_config_dict):
                     }
                 ],
             },
+            "offset": {
+                "type": "postgres",
+                "start_from": 123456789,
+                "start_from_type": "bigint",
+                "postgres": {
+                    "table_name": "offset_tracking",
+                    "host": "db",
+                    "port": 5432,
+                    "database": "test_db",
+                    "user": "user",
+                    "password": "password",
+                },
+            },
         }
     ]
     config["output"]["rated"][

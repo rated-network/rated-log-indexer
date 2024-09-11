@@ -5,6 +5,12 @@ from bytewax.testing import run_main, TestingSource
 from pytest_httpx import HTTPXMock
 from rated_parser.payloads.inputs import JsonFieldDefinition, LogFormat, FieldType  # type: ignore
 
+from src.config.models.offset import (
+    OffsetYamlConfig,
+    OffsetRedisYamlConfig,
+    OffsetTypes,
+    StartFromTypes,
+)
 from src.config.models.inputs.cloudwatch import CloudwatchConfig
 from src.config.models.inputs.datadog import (
     DatadogConfig,
@@ -90,13 +96,14 @@ def test_logs_dataflow(
             mock_input,
             mock_fetch_cloudwatch_logs,
             filter_manager.parse_and_filter_log,
+            "integration_prefix",
         )
     ]
 
     flow = build_dataflow(
         inputs,  # type: ignore
         OutputTypes.RATED,
-        build_http_sink(output_config),
+        lambda prefix: build_http_sink(output_config, integration_prefix=prefix),
     )
 
     run_main(flow)
@@ -192,13 +199,14 @@ def test_metrics_dataflow(
             mock_input,
             mock_fetch_metrics,
             filter_manager.parse_and_filter_metrics,
+            "datadog_integration_prefix",
         )
     ]
 
     flow = build_dataflow(
         inputs,  # type: ignore
         OutputTypes.RATED,
-        build_http_sink(output_config),
+        lambda prefix: build_http_sink(output_config, integration_prefix=prefix),
     )
 
     run_main(flow)
@@ -228,6 +236,14 @@ def test_multiple_inputs_dataflow(
             aws_access_key_id="fake_access_key",
             aws_secret_access_key="fake_secret_key",
             region="us-west-2",
+        ),
+        offset=OffsetYamlConfig(
+            type=OffsetTypes.REDIS,
+            start_from=123456789,
+            start_from_type=StartFromTypes.BIGINT,
+            redis=OffsetRedisYamlConfig(
+                host="localhost", port=6379, db=0, key="offset_tracking"
+            ),
         ),
         filters=FiltersYamlConfig(
             version=1,
@@ -324,6 +340,7 @@ def test_multiple_inputs_dataflow(
             mock_input_logs1,
             mock_fetch_logs,
             filter_manager.parse_and_filter_log,
+            "cloudwatch_integration_prefix",
         ),
         (
             IntegrationTypes.CLOUDWATCH,
@@ -331,13 +348,14 @@ def test_multiple_inputs_dataflow(
             mock_input_logs2,
             mock_fetch_logs,
             filter_manager.parse_and_filter_log,
+            "datadog_integration_prefix",
         ),
     ]
 
     flow = build_dataflow(
         inputs,  # type: ignore
         OutputTypes.RATED,
-        build_http_sink(output_config),
+        lambda prefix: build_http_sink(output_config, integration_prefix=prefix),
     )
 
     run_main(flow)
@@ -393,6 +411,14 @@ def test_metrics_logs_inputs_dataflow(
                 ],
             ),
         ),
+        offset=OffsetYamlConfig(
+            type=OffsetTypes.REDIS,
+            start_from=123456789,
+            start_from_type=StartFromTypes.BIGINT,
+            redis=OffsetRedisYamlConfig(
+                host="localhost", port=6379, db=0, key="offset_tracking"
+            ),
+        ),
         filters=FiltersYamlConfig(
             version=1,
             log_format=LogFormat.JSON,
@@ -427,6 +453,14 @@ def test_metrics_logs_inputs_dataflow(
             aws_access_key_id="fake_access_key",
             aws_secret_access_key="fake_secret_key",
             region="us-west-2",
+        ),
+        offset=OffsetYamlConfig(
+            type=OffsetTypes.REDIS,
+            start_from=123456789,
+            start_from_type=StartFromTypes.BIGINT,
+            redis=OffsetRedisYamlConfig(
+                host="localhost", port=6379, db=0, key="offset_tracking"
+            ),
         ),
         filters=FiltersYamlConfig(
             version=1,
@@ -543,6 +577,7 @@ def test_metrics_logs_inputs_dataflow(
             mock_input_metrics,
             mock_fetch_metrics,
             filter_manager_metrics.parse_and_filter_metrics,
+            "datadog_integration_prefix",
         ),
         (
             IntegrationTypes.CLOUDWATCH,
@@ -550,13 +585,14 @@ def test_metrics_logs_inputs_dataflow(
             mock_input_logs,
             mock_fetch_logs,
             filter_manager_logs.parse_and_filter_log,
+            "cloudwatch_integration_prefix",
         ),
     ]
 
     flow = build_dataflow(
         inputs,  # type: ignore
         config.output.type,
-        build_http_sink(output_config),
+        lambda prefix: build_http_sink(output_config, integration_prefix=prefix),
     )
 
     run_main(flow)

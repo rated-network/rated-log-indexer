@@ -8,7 +8,8 @@ from src.indexers.offset_tracker.redis import RedisOffsetTracker
 
 
 def get_offset_tracker() -> Tuple[OffsetTracker, Union[int, datetime]]:
-    config = ConfigurationManager.load_config().offset
+    # TODO: Fix this to automatically get it from the config
+    config = ConfigurationManager.load_config().inputs[0].offset
     if config.type == "postgres":
         return PostgresOffsetTracker(), config.start_from
     elif config.type == "redis":

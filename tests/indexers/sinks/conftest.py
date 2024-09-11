@@ -26,7 +26,7 @@ def test_events():
             "event_timestamp": datetime.fromtimestamp(
                 1723041096000 / 1000, tz=timezone.utc
             ),
-            "values": '{"example_key": "example_value_one"}',
+            "values": {"example_key": "example_value_one"},
         },
         {
             "customer_id": "customer_id_two",
@@ -34,7 +34,7 @@ def test_events():
             "event_timestamp": datetime.fromtimestamp(
                 1723041096100 / 1000, tz=timezone.utc
             ),
-            "values": '{"example_key": "example_value_two"}',
+            "values": {"example_key": "example_value_two"},
         },
         {
             "customer_id": "customer_id_three",
@@ -42,7 +42,7 @@ def test_events():
             "event_timestamp": datetime.fromtimestamp(
                 1723041096200 / 1000, tz=timezone.utc
             ),
-            "values": '{"example_key": "example_value_three"}',
+            "values": {"example_key": "example_value_three"},
         },
     ]
     return [FilteredEvent(**log) for log in logs]
@@ -61,7 +61,7 @@ def http_sink(httpx_mock: HTTPXMock):
         ingestion_key="your_ingestion_key",
         ingestion_url=endpoint,
     )
-    return build_http_sink(output_config)
+    return build_http_sink(output_config, integration_prefix="")
 
 
 @pytest.fixture

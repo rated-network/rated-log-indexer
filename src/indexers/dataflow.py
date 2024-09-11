@@ -17,7 +17,6 @@ from src.indexers.sinks.rated import build_http_sink
 from src.indexers.sources.rated import RatedSource, TimeRange
 from src.utils.logger import logger
 
-
 integration_client: Optional[Union[DatadogClient, CloudwatchClient]] = None
 
 
@@ -72,12 +71,19 @@ def fetch_metrics(
 
 def parse_config(
     config: RatedIndexerYamlConfig,
-) -> tuple[
+) -> Tuple[
     List[
-        Tuple[IntegrationTypes, InputTypes, FixedPartitionedSource, Callable, Callable]
+        Tuple[
+            IntegrationTypes,
+            InputTypes,
+            FixedPartitionedSource,
+            Callable,
+            Callable,
+            str,
+        ]
     ],
     OutputTypes,
-    DynamicSink,
+    Callable[[str], DynamicSink],  # Ensure this returns a valid DynamicSink
 ]:
     inputs = []
     for input_config in config.inputs:
@@ -97,6 +103,7 @@ def parse_config(
                 input_source,
                 fetcher,
                 filter_logic,
+                input_config.integration_prefix,
             )
         )
 
@@ -104,21 +111,34 @@ def parse_config(
 
     if output_config.type == OutputTypes.RATED and output_config.rated:
         rated_config = output_config.rated
-        output_sink = build_http_sink(rated_config.ingestion_url)  # type: ignore
+
+        def output_sink_builder(prefix: str) -> DynamicSink:
+            return build_http_sink(rated_config, prefix)
+
     elif output_config.type == OutputTypes.CONSOLE:
-        output_sink = build_console_sink()  # type: ignore
+
+        def output_sink_builder(prefix: str) -> DynamicSink:
+            return build_console_sink()
+
     else:
         raise ValueError(f"Invalid output source: {output_config.type}")
 
-    return inputs, output_config.type, output_sink  # type: ignore
+    return inputs, output_config.type, output_sink_builder  # type: ignore
 
 
 def build_dataflow(
     inputs: List[
-        Tuple[IntegrationTypes, InputTypes, FixedPartitionedSource, Callable, Callable]
+        Tuple[
+            IntegrationTypes,
+            InputTypes,
+            FixedPartitionedSource,
+            Callable,
+            Callable,
+            str,
+        ]
     ],
     output_type: OutputTypes,
-    output_sink: DynamicSink,
+    output_sink_builder: Callable[[str], DynamicSink],
 ) -> Dataflow:
     logger.info(f"Building indexer dataflow for {len(inputs)} inputs")
 
@@ -132,8 +152,11 @@ def build_dataflow(
         input_source,
         fetcher,
         filter_logic,
+        integration_prefix,
     ) in enumerate(inputs):
-        logger.info(f"Building stream {idx} for {integration_type} {input_type}")
+        logger.info(
+            f"Building stream {idx} for {integration_type} {input_type} with prefix '{integration_prefix}'"
+        )
 
         def create_fetcher(f, it):
             def wrapped_fetcher(x):
@@ -144,10 +167,12 @@ def build_dataflow(
 
             return wrapped_fetcher
 
-        def create_filter(f):
+        def create_filter(f, prefix):
             def wrapped_filter(x):
                 logger.debug(f"Filtering data: {x}")
                 result = f(x)
+                if result:
+                    result.integration_prefix = prefix
                 logger.debug(f"Filtered result: {result}")
                 return result
 
@@ -163,7 +188,7 @@ def build_dataflow(
             .then(
                 op.filter_map,
                 f"filter_{input_type.value}_{idx}",
-                create_filter(filter_logic),
+                create_filter(filter_logic, integration_prefix),
             )
         )
         output_streams.append(stream)
@@ -176,17 +201,18 @@ def build_dataflow(
         merged_stream = output_streams[0]
 
     logger.info(f"Adding output sink: {output_type.value}")
-    merged_stream.then(op.output, f"{output_type.value}_output_sink", output_sink)
+
+    merged_stream.then(op.output, "sink_output", output_sink_builder(""))
 
     return flow
 
 
 def dataflow(config: RatedIndexerYamlConfig) -> Dataflow:
-    inputs, output_type, output_sink = parse_config(config)
+    inputs, output_type, output_sink_builder = parse_config(config)
 
     flow = build_dataflow(
         inputs,
         output_type,
-        output_sink,
+        output_sink_builder,
     )
     return flow
