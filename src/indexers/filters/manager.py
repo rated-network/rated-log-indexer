@@ -64,6 +64,7 @@ class FilterManager:
         """
         Returns parsed fields dictionary from the metrics entry if the metrics entry is successfully parsed and filtered.
         """
+        print("FILTER_METRICS", metrics_entry)
         try:
             return FilteredEvent(
                 event_id=f"{metrics_entry.metric_name}_{metrics_entry.customer_id}_{to_milliseconds(metrics_entry.event_timestamp)}",

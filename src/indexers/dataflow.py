@@ -84,6 +84,7 @@ def parse_config(
         input_source = RatedSource()
         fetcher = fetch_logs if input_config.type == InputTypes.LOGS else fetch_metrics
         filter_manager = FilterManager(input_config.filters)
+
         filter_logic = (
             filter_manager.parse_and_filter_log
             if input_config.type == InputTypes.LOGS
@@ -132,22 +133,49 @@ def build_dataflow(
         fetcher,
         filter_logic,
     ) in enumerate(inputs):
+        logger.info(f"Building stream {idx} for {integration_type} {input_type}")
+
+        def create_fetcher(f, it):
+            def wrapped_fetcher(x):
+                logger.debug(f"Fetching data for {it}: {x}")
+                result = f(x, it)
+                logger.debug(f"Fetched data: {result}")
+                return result
+
+            return wrapped_fetcher
+
+        def create_filter(f):
+            def wrapped_filter(x):
+                logger.debug(f"Filtering data: {x}")
+                result = f(x)
+                logger.debug(f"Filtered result: {result}")
+                return result
+
+            return wrapped_filter
+
         stream: Stream = (
             op.input(f"input_source_{idx}", flow, input_source)
             .then(
                 op.flat_map,
                 f"fetch_{integration_type.value}_{input_type.value}_{idx}",
-                lambda x: fetcher(x, integration_type),
+                create_fetcher(fetcher, integration_type),
             )
-            .then(op.filter_map, f"filter_{input_type.value}_{idx}", filter_logic)
+            .then(
+                op.filter_map,
+                f"filter_{input_type.value}_{idx}",
+                create_filter(filter_logic),
+            )
         )
         output_streams.append(stream)
 
     if len(output_streams) > 1:
+        logger.info("Merging streams")
         merged_stream = op.merge("merge_streams", *output_streams)
     else:
+        logger.info("Using single stream")
         merged_stream = output_streams[0]
 
+    logger.info(f"Adding output sink: {output_type.value}")
     merged_stream.then(op.output, f"{output_type.value}_output_sink", output_sink)
 
     return flow
