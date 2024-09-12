@@ -36,7 +36,8 @@ def test_logs_dataflow(
     httpx_mock: HTTPXMock,
     valid_config_dict,
 ):
-    mock_load_config.return_value = RatedIndexerYamlConfig(**valid_config_dict)
+    valid_config = RatedIndexerYamlConfig(**valid_config_dict)
+    mock_load_config.return_value = valid_config
     sample_logs = [
         {
             "eventId": "mock_log_one",
@@ -93,6 +94,7 @@ def test_logs_dataflow(
         (
             IntegrationTypes.CLOUDWATCH,
             InputTypes.LOGS,
+            valid_config.inputs[0].cloudwatch,
             mock_input,
             mock_fetch_cloudwatch_logs,
             filter_manager.parse_and_filter_log,
@@ -196,6 +198,7 @@ def test_metrics_dataflow(
         (
             IntegrationTypes.DATADOG,
             InputTypes.METRICS,
+            config.inputs[0].datadog,
             mock_input,
             mock_fetch_metrics,
             filter_manager.parse_and_filter_metrics,
@@ -337,6 +340,7 @@ def test_multiple_inputs_dataflow(
         (
             IntegrationTypes.CLOUDWATCH,
             InputTypes.LOGS,
+            cloudwatch_config.cloudwatch,
             mock_input_logs1,
             mock_fetch_logs,
             filter_manager.parse_and_filter_log,
@@ -345,6 +349,7 @@ def test_multiple_inputs_dataflow(
         (
             IntegrationTypes.CLOUDWATCH,
             InputTypes.LOGS,
+            cloudwatch_config.cloudwatch,
             mock_input_logs2,
             mock_fetch_logs,
             filter_manager.parse_and_filter_log,
@@ -574,6 +579,7 @@ def test_metrics_logs_inputs_dataflow(
         (
             IntegrationTypes.DATADOG,
             InputTypes.METRICS,
+            datadog_config.datadog,
             mock_input_metrics,
             mock_fetch_metrics,
             filter_manager_metrics.parse_and_filter_metrics,
@@ -582,6 +588,7 @@ def test_metrics_logs_inputs_dataflow(
         (
             IntegrationTypes.CLOUDWATCH,
             InputTypes.LOGS,
+            cloudwatch_config.cloudwatch,
             mock_input_logs,
             mock_fetch_logs,
             filter_manager_logs.parse_and_filter_log,

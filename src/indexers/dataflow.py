@@ -1,12 +1,16 @@
-from typing import Callable, Iterator, Union, Optional, List, Tuple
+from typing import Callable, Iterator, Union, List, Tuple
 
 from bytewax.dataflow import Dataflow, Stream
 import bytewax.operators as op
 from bytewax.inputs import FixedPartitionedSource
 from bytewax.outputs import DynamicSink
+from pydantic import StrictStr
 
-from src.clients.datadog import get_datadog_client, DatadogClient
-from src.clients.cloudwatch import get_cloudwatch_client, CloudwatchClient
+from src.clients.manager import ClientManager
+from src.config.models.inputs.cloudwatch import CloudwatchConfig
+from src.config.models.inputs.datadog import DatadogConfig
+from src.clients.datadog import DatadogClient
+from src.clients.cloudwatch import CloudwatchClient
 from src.indexers.filters.types import LogEntry, MetricEntry
 from src.indexers.filters.manager import FilterManager
 from src.config.manager import RatedIndexerYamlConfig
@@ -17,32 +21,21 @@ from src.indexers.sinks.rated import build_http_sink
 from src.indexers.sources.rated import RatedSource, TimeRange
 from src.utils.logger import logger
 
-integration_client: Optional[Union[DatadogClient, CloudwatchClient]] = None
+
+client_manager = ClientManager()
 
 
-def get_client_instance(
-    integration_type: IntegrationTypes,
-) -> Union[CloudwatchClient, DatadogClient]:
-    global integration_client
-
-    if integration_type == IntegrationTypes.CLOUDWATCH.value:
-        if integration_client is None:
-            integration_client = get_cloudwatch_client()
-        return integration_client
-
-    elif integration_type == IntegrationTypes.DATADOG.value:
-        if integration_client is None:
-            integration_client = get_datadog_client()
-        return integration_client
-
-    else:
-        raise ValueError(f"Unsupported integration type: {integration_type}")
+def get_client_instance(client_id: StrictStr) -> Union[CloudwatchClient, DatadogClient]:
+    client = client_manager.get_client(client_id)
+    if client is None:
+        raise ValueError(f"No client found for client_id: {client_id}")
+    return client
 
 
 def fetch_logs(
-    time_range: TimeRange, integration_type: IntegrationTypes
+    time_range: TimeRange, integration_id: StrictStr, integration_type: IntegrationTypes
 ) -> Iterator[LogEntry]:
-    client = get_client_instance(integration_type)
+    client = get_client_instance(integration_id)
 
     if integration_type == IntegrationTypes.CLOUDWATCH.value:
         raw_logs = client.query_logs(time_range.start_time, time_range.end_time)
@@ -55,9 +48,9 @@ def fetch_logs(
 
 
 def fetch_metrics(
-    time_range: TimeRange, integration_type: IntegrationTypes
+    time_range: TimeRange, integration_id: StrictStr, integration_type: IntegrationTypes
 ) -> Iterator[MetricEntry]:
-    client = get_client_instance(integration_type)
+    client = get_client_instance(integration_id)
 
     if integration_type == IntegrationTypes.CLOUDWATCH.value:
         raw_metrics = client.query_metrics(time_range.start_time, time_range.end_time)
@@ -76,6 +69,7 @@ def parse_config(
         Tuple[
             IntegrationTypes,
             InputTypes,
+            Union[DatadogConfig, CloudwatchConfig],
             FixedPartitionedSource,
             Callable,
             Callable,
@@ -88,6 +82,11 @@ def parse_config(
     inputs = []
     for input_config in config.inputs:
         input_source = RatedSource()
+        client_config = (
+            input_config.cloudwatch
+            if input_config.integration == IntegrationTypes.CLOUDWATCH
+            else input_config.datadog
+        )
         fetcher = fetch_logs if input_config.type == InputTypes.LOGS else fetch_metrics
         filter_manager = FilterManager(input_config.filters)
 
@@ -100,6 +99,7 @@ def parse_config(
             (
                 input_config.integration,
                 input_config.type,
+                client_config,
                 input_source,
                 fetcher,
                 filter_logic,
@@ -131,6 +131,7 @@ def build_dataflow(
         Tuple[
             IntegrationTypes,
             InputTypes,
+            Union[DatadogConfig, CloudwatchConfig],
             FixedPartitionedSource,
             Callable,
             Callable,
@@ -149,6 +150,7 @@ def build_dataflow(
     for idx, (
         integration_type,
         input_type,
+        client_config,
         input_source,
         fetcher,
         filter_logic,
@@ -158,10 +160,12 @@ def build_dataflow(
             f"Building stream {idx} for {integration_type} {input_type} with prefix '{integration_prefix}'"
         )
 
-        def create_fetcher(f, it):
+        client_id = client_manager.add_client(integration_type, client_config)
+
+        def create_fetcher(f, client, integration):
             def wrapped_fetcher(x):
-                logger.debug(f"Fetching data for {it}: {x}")
-                result = f(x, it)
+                logger.debug(f"Fetching data for {integration}: {x}")
+                result = f(x, client, integration)
                 logger.debug(f"Fetched data: {result}")
                 return result
 
@@ -183,7 +187,7 @@ def build_dataflow(
             .then(
                 op.flat_map,
                 f"fetch_{integration_type.value}_{input_type.value}_{idx}",
-                create_fetcher(fetcher, integration_type),
+                create_fetcher(fetcher, client_id, integration_type),
             )
             .then(
                 op.filter_map,
