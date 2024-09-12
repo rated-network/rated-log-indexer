@@ -56,13 +56,9 @@ def test_postgres_offset_tracker_get_current_offset(tracker):
 
 
 def test_postgres_offset_tracker_update_offset(tracker):
-    print("\nBefore update:")
-    tracker.get_current_offset()  # This will print all rows
-
+    tracker.get_current_offset()
     new_offset = TEST_START_FROM + 100
     tracker.update_offset(new_offset)
-
-    print("\nAfter update:")
     assert tracker.get_current_offset() == new_offset
 
 
