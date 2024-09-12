@@ -19,3 +19,7 @@ class NullSink(DynamicSink[Any]):
         self, step_id: str, worker_index: int, worker_count: int
     ) -> _NullSinkPartition:
         return _NullSinkPartition()
+
+
+def build_null_sink() -> NullSink:
+    return NullSink()

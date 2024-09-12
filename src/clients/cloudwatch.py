@@ -277,7 +277,7 @@ class CloudwatchClient:
 
 def get_cloudwatch_client():
     try:
-        config = ConfigurationManager.load_config().input.cloudwatch
+        config = ConfigurationManager.load_config().inputs.cloudwatch
     except Exception as e:
         msg = f"Failed to load Cloudwatch configuration for client: {e}"
         logger.error(msg, exc_info=True)

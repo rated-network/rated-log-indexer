@@ -1,5 +1,6 @@
 import asyncio
-from typing import Any, List
+import json
+from typing import Any, List, Dict
 import time
 from collections import deque
 import structlog
@@ -20,6 +21,58 @@ class SlaOsApiBody:
     key: str
     values: dict
 
+    @classmethod
+    def parse_and_prefix_values(
+        cls, raw_values: Any, integration_prefix: str
+    ) -> Dict[str, Any]:
+        """
+        Parse the values if they're a string, and add the integration prefix to the keys.
+
+        Args:
+            raw_values (Any): The values to parse and prefix.
+            integration_prefix (str): The prefix to add to each key.
+
+        Returns:
+            Dict[str, Any]: A dictionary with prefixed keys.
+        """
+        if isinstance(raw_values, str):
+            try:
+                values = json.loads(raw_values)
+            except json.JSONDecodeError:
+                logger.error(f"Invalid JSON string for values: {raw_values}")
+                return {}
+        elif isinstance(raw_values, dict):
+            values = raw_values
+        else:
+            logger.error(f"Unexpected type for values: {type(raw_values)}")
+            return {}
+
+        if integration_prefix and integration_prefix.strip():
+            return {f"{integration_prefix.strip()}.{k}": v for k, v in values.items()}
+        return values
+
+    @classmethod
+    def from_filtered_event(
+        cls, event: FilteredEvent, key: str, integration_prefix: str
+    ) -> "SlaOsApiBody":
+        """
+        Create a SlaOsApiBody instance from a FilteredEvent.
+
+        Args:
+            event (FilteredEvent): The filtered event to convert.
+            key (str): The key to use for the SlaOsApiBody.
+            integration_prefix (str): The integration prefix to apply to values.
+
+        Returns:
+            SlaOsApiBody: A new instance of SlaOsApiBody.
+        """
+        return cls(
+            customer_id=event.customer_id,
+            timestamp=event.event_timestamp.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            key=key,
+            values=cls.parse_and_prefix_values(event.values, integration_prefix),
+        )
+
 
 class _HTTPSinkPartition(StatelessSinkPartition):
     """
@@ -30,6 +83,7 @@ class _HTTPSinkPartition(StatelessSinkPartition):
     def __init__(
         self,
         config: RatedOutputConfig,
+        integration_prefix: str,
         worker_index: int,
     ) -> None:
         """
@@ -41,6 +95,7 @@ class _HTTPSinkPartition(StatelessSinkPartition):
         """
         super().__init__()
         self.worker_index = worker_index
+        self.integration_prefix = integration_prefix
         self.config = config
         self.client = httpx.AsyncClient()
         self.max_concurrent_requests = 5
@@ -51,6 +106,7 @@ class _HTTPSinkPartition(StatelessSinkPartition):
         self.flush_in_progress: bool = False
         logger.debug(
             f"Worker {self.worker_index} initialized",
+            integration_prefix=self.integration_prefix,
             http_endpoint=self.config.ingestion_url,
         )
 
@@ -75,11 +131,10 @@ class _HTTPSinkPartition(StatelessSinkPartition):
             List[dict]: The HTTP request body in dictionary format.
         """
         return [
-            SlaOsApiBody(
-                customer_id=item.customer_id,
-                timestamp=item.event_timestamp.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            SlaOsApiBody.from_filtered_event(
+                event=item,
                 key=self.config.ingestion_key,
-                values=item.values,
+                integration_prefix=self.integration_prefix,
             ).__dict__
             for item in items
         ]
@@ -124,10 +179,21 @@ class _HTTPSinkPartition(StatelessSinkPartition):
             logger.debug(
                 f"Worker {self.worker_index} successfully sent batch to HTTP endpoint",
                 batch_size=len(items),
+                integration_prefix=self.integration_prefix,
             )
         except httpx.HTTPError as e:
-            logger.error(f"Worker {self.worker_index} HTTP error: {e}", items=items)
+            logger.error(
+                f"Worker {self.worker_index} HTTP error: {e}",
+                items=items,
+                integration_prefix=self.integration_prefix,
+            )
             raise
+        except Exception as e:
+            logger.error(
+                f"Worker {self.worker_index} error: {e}",
+                items=items,
+                integration_prefix=self.integration_prefix,
+            )
 
     async def flush_batch(self) -> None:
         """
@@ -138,9 +204,14 @@ class _HTTPSinkPartition(StatelessSinkPartition):
             self.batch.clear()
             await self.send_batch(items)
             self.last_flush_time = time.time()
-            logger.debug(f"Flushed batch of {len(items)} items")
+            logger.debug(
+                f"Flushed batch of {len(items)} items",
+                integration_prefix=self.integration_prefix,
+            )
         else:
-            logger.debug("No items to flush")
+            logger.debug(
+                "No items to flush", integration_prefix=self.integration_prefix
+            )
 
     def should_flush(self) -> bool:
         """
@@ -162,7 +233,10 @@ class _HTTPSinkPartition(StatelessSinkPartition):
             item (Any): The event to be added to the batch.
         """
         self.batch.append(item)
-        logger.debug(f"Added item to batch. Current batch size: {len(self.batch)}")
+        logger.debug(
+            f"Added item to batch. Current batch size: {len(self.batch)}",
+            integration_prefix=self.integration_prefix,
+        )
         # Schedule flush if needed
         asyncio.run(self._flush_if_needed())
 
@@ -175,7 +249,10 @@ class _HTTPSinkPartition(StatelessSinkPartition):
         """
         for item in items:
             self.batch.append(item)
-            logger.debug(f"Added item to batch. Current batch size: {len(self.batch)}")
+            logger.debug(
+                f"Added item to batch. Current batch size: {len(self.batch)}",
+                integration_prefix=self.integration_prefix,
+            )
         # Flush any remaining items after batch write
         asyncio.run(self._flush_if_needed())
 
@@ -184,20 +261,27 @@ class _HTTPSinkPartition(StatelessSinkPartition):
         Close the HTTP client and ensure any remaining items are flushed.
         """
         if self.batch:
-            logger.info("Flushing remaining items in close")
+            logger.info(
+                "Flushing remaining items in close",
+                integration_prefix=self.integration_prefix,
+            )
             asyncio.run(self.flush_batch())
         asyncio.run(self.client.aclose())
-        logger.info(f"Worker {self.worker_index} HTTP sink closed")
+        logger.info(
+            f"Worker {self.worker_index} HTTP sink closed",
+            integration_prefix=self.integration_prefix,
+        )
 
 
 class HTTPSink(DynamicSink):
-    def __init__(self, config: RatedOutputConfig) -> None:
+    def __init__(self, config: RatedOutputConfig, integration_prefix: str) -> None:
         super().__init__()
         self.config = config
+        self.integration_prefix = integration_prefix
 
     def build(self, step_id: str, worker_index: int, worker_count: int):
-        return _HTTPSinkPartition(self.config, worker_index)
+        return _HTTPSinkPartition(self.config, self.integration_prefix, worker_index)
 
 
-def build_http_sink(config: RatedOutputConfig) -> HTTPSink:
-    return HTTPSink(config=config)
+def build_http_sink(config: RatedOutputConfig, integration_prefix: str) -> HTTPSink:
+    return HTTPSink(config=config, integration_prefix=integration_prefix)

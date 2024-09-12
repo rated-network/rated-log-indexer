@@ -20,19 +20,46 @@ def valid_config_with_secrets(valid_config_dict):
         },
     }
 
-    config["input"] = {
-        "integration": "datadog",
-        "type": "logs",
-        "datadog": {
-            "api_key": "secret:datadog_api_key_in_secrets_manager",
-            "app_key": "app_key_value_raw",
-            "site": "datadog.eu",
-            "logs_config": {
-                "query": "some_query",
-                "indexes": ["main"],
+    config["inputs"] = [
+        {
+            "integration": "datadog",
+            "type": "logs",
+            "datadog": {
+                "api_key": "secret:datadog_api_key_in_secrets_manager",
+                "app_key": "app_key_value_raw",
+                "site": "datadog.eu",
+                "logs_config": {
+                    "query": "some_query",
+                    "indexes": ["main"],
+                },
             },
-        },
-    }
+            "filters": {
+                "version": 1,
+                "log_format": "json_dict",
+                "log_example": {},
+                "fields": [
+                    {
+                        "key": "customer_id",
+                        "field_type": "string",
+                        "path": "path1",
+                    }
+                ],
+            },
+            "offset": {
+                "type": "postgres",
+                "start_from": 123456789,
+                "start_from_type": "bigint",
+                "postgres": {
+                    "table_name": "offset_tracking",
+                    "host": "db",
+                    "port": 5432,
+                    "database": "test_db",
+                    "user": "user",
+                    "password": "password",
+                },
+            },
+        }
+    ]
     config["output"]["rated"][
         "ingestion_key"
     ] = "secret:ingestion_key_key_in_secrets_manager"
@@ -65,12 +92,14 @@ def test_get_config_with_secrets(valid_config_with_secrets, mock_aws_secrets_man
         assert isinstance(result_config, RatedIndexerYamlConfig)
         assert result_config.secrets.use_secrets_manager is True
         assert result_config.secrets.provider == SecretProvider.AWS
-        assert result_config.input.integration == IntegrationTypes.DATADOG
-        assert result_config.input.datadog.app_key == "app_key_value_raw"
-        assert result_config.input.datadog.api_key == "resolved_datadog_api_key"
+        assert result_config.inputs[0]["integration"] == IntegrationTypes.DATADOG
+        assert result_config.inputs[0]["datadog"]["app_key"] == "app_key_value_raw"
+        assert (
+            result_config.inputs[0]["datadog"]["api_key"] == "resolved_datadog_api_key"
+        )
         assert result_config.output.rated.ingestion_key == "resolved_ingestion_key"
 
-        assert not result_config.input.datadog.api_key.startswith("secret:")
+        assert not result_config.inputs[0]["datadog"]["api_key"].startswith("secret:")
         assert not result_config.output.rated.ingestion_key.startswith("secret:")
 
 
@@ -78,11 +107,11 @@ def test_secret_manager_resolve_secrets(
     valid_config_with_secrets, mock_aws_secrets_manager
 ):
     secret_name = "secret:app_key"
-    valid_config_with_secrets["input"]["datadog"]["app_key"] = secret_name
+    valid_config_with_secrets["inputs"][0]["datadog"]["app_key"] = secret_name
 
     config = RatedIndexerYamlConfig(**valid_config_with_secrets)
     secret_manager = AwsSecretManager(config.secrets.aws)
     secret_manager.resolve_secrets(config)
 
-    assert config.input.datadog.app_key == "resolved_datadog_app_key"
-    assert config.input.datadog.api_key != secret_name
+    assert config.inputs[0]["datadog"]["app_key"] == "resolved_datadog_app_key"
+    assert config.inputs[0]["datadog"]["api_key"] != secret_name

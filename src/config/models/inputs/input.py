@@ -1,8 +1,10 @@
 from enum import Enum
 
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, model_validator, Field, StrictStr
 from typing import Optional
 
+from src.config.models.offset import OffsetYamlConfig
+from src.config.models.filters import FiltersYamlConfig
 from src.config.models.inputs.cloudwatch import CloudwatchConfig
 from src.config.models.inputs.datadog import DatadogConfig
 
@@ -18,8 +20,14 @@ class InputTypes(str, Enum):
 
 
 class InputYamlConfig(BaseModel):
+    integration_prefix: StrictStr = Field(
+        default="", description="Prefix for the integration."
+    )
     integration: IntegrationTypes
     type: InputTypes
+    filters: FiltersYamlConfig
+    offset: OffsetYamlConfig
+
     cloudwatch: Optional[CloudwatchConfig] = None
     datadog: Optional[DatadogConfig] = None
 

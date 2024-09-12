@@ -17,6 +17,7 @@ class ConsoleOutputConfig(BaseModel):
 class OutputTypes(str, enum.Enum):
     CONSOLE = "console"
     RATED = "rated"
+    NULL = "null"
 
 
 class OutputYamlConfig(BaseModel):

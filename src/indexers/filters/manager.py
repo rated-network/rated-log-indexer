@@ -1,31 +1,14 @@
-from typing import Optional, Any
+from typing import Optional
 
 import structlog
 from rated_parser import LogParser  # type: ignore
 from rated_parser.payloads.inputs import RawTextLogPatternPayload, JsonLogPatternPayload, LogFormat as RatedParserLogFormat  # type: ignore
 
 from src.config.models.filters import FiltersYamlConfig
-from src.indexers.filters.types import FilteredEvent, LogEntry
+from src.indexers.filters.types import FilteredEvent, LogEntry, MetricEntry
 from src.utils.time_conversion import to_milliseconds
 
 logger = structlog.getLogger(__name__)
-
-
-def parse_and_filter_metrics(metrics_entry: Any) -> Optional[FilteredEvent]:
-    """
-    Returns parsed fields dictionary from the metrics entry if the metrics entry is successfully parsed and filtered.
-    """
-    try:
-        return FilteredEvent(
-            event_id=f"{metrics_entry.metric_name}_{metrics_entry.customer_id}_{to_milliseconds(metrics_entry.event_timestamp)}",
-            event_timestamp=metrics_entry.event_timestamp,
-            customer_id=metrics_entry.customer_id,
-            values={metrics_entry.metric_name: metrics_entry.value},
-        )
-
-    except Exception as e:
-        logger.error("Parsing error", metric_content=metrics_entry, error=str(e))
-        return None
 
 
 class FilterManager:
@@ -74,4 +57,22 @@ class FilterManager:
 
         except Exception as e:
             logger.error("Parsing error", log_content=log_entry.content, error=str(e))
+            return None
+
+    @staticmethod
+    def parse_and_filter_metrics(metrics_entry: MetricEntry) -> Optional[FilteredEvent]:
+        """
+        Returns parsed fields dictionary from the metrics entry if the metrics entry is successfully parsed and filtered.
+        """
+        print("FILTER_METRICS", metrics_entry)
+        try:
+            return FilteredEvent(
+                event_id=f"{metrics_entry.metric_name}_{metrics_entry.customer_id}_{to_milliseconds(metrics_entry.event_timestamp)}",
+                event_timestamp=metrics_entry.event_timestamp,
+                customer_id=metrics_entry.customer_id,
+                values={metrics_entry.metric_name: metrics_entry.value},
+            )
+
+        except Exception as e:
+            logger.error("Parsing error", metric_content=metrics_entry, error=str(e))
             return None

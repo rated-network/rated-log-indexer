@@ -1,6 +1,6 @@
-from typing import Callable, Iterator, Union, Optional
+from typing import Callable, Iterator, Union, Optional, List, Tuple
 
-from bytewax.dataflow import Dataflow
+from bytewax.dataflow import Dataflow, Stream
 import bytewax.operators as op
 from bytewax.inputs import FixedPartitionedSource
 from bytewax.outputs import DynamicSink
@@ -8,7 +8,7 @@ from bytewax.outputs import DynamicSink
 from src.clients.datadog import get_datadog_client, DatadogClient
 from src.clients.cloudwatch import get_cloudwatch_client, CloudwatchClient
 from src.indexers.filters.types import LogEntry, MetricEntry
-from src.indexers.filters.manager import FilterManager, parse_and_filter_metrics
+from src.indexers.filters.manager import FilterManager
 from src.config.manager import RatedIndexerYamlConfig
 from src.config.models.inputs.input import IntegrationTypes, InputTypes
 from src.config.models.output import OutputTypes
@@ -16,7 +16,6 @@ from src.indexers.sinks.console import build_console_sink
 from src.indexers.sinks.rated import build_http_sink
 from src.indexers.sources.rated import RatedSource, TimeRange
 from src.utils.logger import logger
-
 
 integration_client: Optional[Union[DatadogClient, CloudwatchClient]] = None
 
@@ -72,93 +71,148 @@ def fetch_metrics(
 
 def parse_config(
     config: RatedIndexerYamlConfig,
-) -> tuple[
-    IntegrationTypes,
-    InputTypes,
-    FixedPartitionedSource,
-    Callable,
+) -> Tuple[
+    List[
+        Tuple[
+            IntegrationTypes,
+            InputTypes,
+            FixedPartitionedSource,
+            Callable,
+            Callable,
+            str,
+        ]
+    ],
     OutputTypes,
-    DynamicSink,
-    Callable,
+    Callable[[str], DynamicSink],  # Ensure this returns a valid DynamicSink
 ]:
-    input_config = config.input
+    inputs = []
+    for input_config in config.inputs:
+        input_source = RatedSource()
+        fetcher = fetch_logs if input_config.type == InputTypes.LOGS else fetch_metrics
+        filter_manager = FilterManager(input_config.filters)
+
+        filter_logic = (
+            filter_manager.parse_and_filter_log
+            if input_config.type == InputTypes.LOGS
+            else filter_manager.parse_and_filter_metrics
+        )
+        inputs.append(
+            (
+                input_config.integration,
+                input_config.type,
+                input_source,
+                fetcher,
+                filter_logic,
+                input_config.integration_prefix,
+            )
+        )
+
     output_config = config.output
-    filter_config = config.filters
 
-    input_source = RatedSource()
-    filter_logic = (
-        FilterManager(filter_config).parse_and_filter_log
-        if input_config.type == InputTypes.LOGS.value
-        else parse_and_filter_metrics
-    )
-    fetcher = (
-        fetch_logs if input_config.type == InputTypes.LOGS.value else fetch_metrics
-    )
-
-    if output_config.type == OutputTypes.RATED.value and output_config.rated:
+    if output_config.type == OutputTypes.RATED and output_config.rated:
         rated_config = output_config.rated
-        output_sink = build_http_sink(rated_config.ingestion_url)  # type: ignore
-    elif output_config.type == OutputTypes.CONSOLE.value:
-        output_sink = build_console_sink()  # type: ignore
+
+        def output_sink_builder(prefix: str) -> DynamicSink:
+            return build_http_sink(rated_config, prefix)
+
+    elif output_config.type == OutputTypes.CONSOLE:
+
+        def output_sink_builder(prefix: str) -> DynamicSink:
+            return build_console_sink()
+
     else:
         raise ValueError(f"Invalid output source: {output_config.type}")
 
-    return (
-        input_config.integration,
-        input_config.type,
-        input_source,
-        fetcher,
-        output_config.type,
-        output_sink,
-        filter_logic,
-    )
+    return inputs, output_config.type, output_sink_builder  # type: ignore
 
 
 def build_dataflow(
-    integration_type: IntegrationTypes,
-    input_type: InputTypes,
-    input_source: FixedPartitionedSource,
-    fetcher: Callable,
+    inputs: List[
+        Tuple[
+            IntegrationTypes,
+            InputTypes,
+            FixedPartitionedSource,
+            Callable,
+            Callable,
+            str,
+        ]
+    ],
     output_type: OutputTypes,
-    output_source: DynamicSink,
-    filter_logic: Callable,
+    output_sink_builder: Callable[[str], DynamicSink],
 ) -> Dataflow:
-    logger.info(
-        rf"Building indexer dataflow for {integration_type.value} {input_type.value}"
-    )
+    logger.info(f"Building indexer dataflow for {len(inputs)} inputs")
 
-    flow = Dataflow("rated_logs_indexer")
-    (
-        op.input(f"{integration_type.value}_input_source", flow, input_source)
-        .then(
-            op.flat_map,
-            f"fetch_{integration_type.value}_{input_type.value}",
-            lambda x: fetcher(x, integration_type),
+    flow = Dataflow("rated_multi_input_indexer")
+
+    output_streams = []
+
+    for idx, (
+        integration_type,
+        input_type,
+        input_source,
+        fetcher,
+        filter_logic,
+        integration_prefix,
+    ) in enumerate(inputs):
+        logger.info(
+            f"Building stream {idx} for {integration_type} {input_type} with prefix '{integration_prefix}'"
         )
-        .then(op.filter_map, f"filter_{input_type.value}", filter_logic)
-        .then(op.output, f"{output_type.value}_output_sink", output_source)
-    )
+
+        def create_fetcher(f, it):
+            def wrapped_fetcher(x):
+                logger.debug(f"Fetching data for {it}: {x}")
+                result = f(x, it)
+                logger.debug(f"Fetched data: {result}")
+                return result
+
+            return wrapped_fetcher
+
+        def create_filter(f, prefix):
+            def wrapped_filter(x):
+                logger.debug(f"Filtering data: {x}")
+                result = f(x)
+                if result:
+                    result.integration_prefix = prefix
+                logger.debug(f"Filtered result: {result}")
+                return result
+
+            return wrapped_filter
+
+        stream: Stream = (
+            op.input(f"input_source_{idx}", flow, input_source)
+            .then(
+                op.flat_map,
+                f"fetch_{integration_type.value}_{input_type.value}_{idx}",
+                create_fetcher(fetcher, integration_type),
+            )
+            .then(
+                op.filter_map,
+                f"filter_{input_type.value}_{idx}",
+                create_filter(filter_logic, integration_prefix),
+            )
+        )
+        output_streams.append(stream)
+
+    if len(output_streams) > 1:
+        logger.info("Merging streams")
+        merged_stream = op.merge("merge_streams", *output_streams)
+    else:
+        logger.info("Using single stream")
+        merged_stream = output_streams[0]
+
+    logger.info(f"Adding output sink: {output_type.value}")
+
+    merged_stream.then(op.output, "sink_output", output_sink_builder(""))
+
     return flow
 
 
 def dataflow(config: RatedIndexerYamlConfig) -> Dataflow:
-    (
-        integration_type,
-        input_type,
-        input_source,
-        logs_fetcher,
-        output_type,
-        output_sink,
-        filter_logic,
-    ) = parse_config(config)
+    inputs, output_type, output_sink_builder = parse_config(config)
 
     flow = build_dataflow(
-        integration_type,
-        input_type,
-        input_source,
-        logs_fetcher,
+        inputs,
         output_type,
-        output_sink,
-        filter_logic,
+        output_sink_builder,
     )
     return flow

@@ -15,34 +15,36 @@ def test_load_config_valid(valid_config_yaml):
         with patch.object(os.path, "exists", return_value=True):
             config = ConfigurationManager.load_config()
 
-            assert config.input.cloudwatch is not None
+            assert config.inputs[0].cloudwatch is not None
             assert config.output.rated is not None
-            assert config.offset.postgres is not None
+            assert config.inputs[0].offset.postgres is not None
 
             assert isinstance(config, RatedIndexerYamlConfig)
-            assert isinstance(config.input, InputYamlConfig)
+            assert isinstance(config.inputs[0], InputYamlConfig)
             assert isinstance(config.output, OutputYamlConfig)
-            assert isinstance(config.offset, OffsetYamlConfig)
+            assert isinstance(config.inputs[0].offset, OffsetYamlConfig)
             assert isinstance(config.secrets, SecretsYamlConfig)
 
-            assert config.input.integration == "cloudwatch"
-            assert config.input.type == "logs"
-            assert config.input.cloudwatch.region == "us-east-1"
-            assert config.input.cloudwatch.logs_config.log_group_name == "my-log-group"
+            assert config.inputs[0].integration == "cloudwatch"
+            assert config.inputs[0].type == "logs"
+            assert config.inputs[0].cloudwatch.region == "us-east-1"
+            assert (
+                config.inputs[0].cloudwatch.logs_config.log_group_name == "my-log-group"
+            )
 
             assert config.output.type == "rated"
             assert config.output.rated.ingestion_id == "your_ingestion_id"
             assert config.output.rated.ingestion_key == "your_ingestion_key"
 
-            assert config.offset.type == "postgres"
-            assert config.offset.start_from == 123456789
-            assert config.offset.start_from_type == "bigint"
-            assert config.offset.postgres.table_name == "offset_tracking"
-            assert config.offset.postgres.host == "db"
-            assert config.offset.postgres.port == 5432
-            assert config.offset.postgres.database == "test_db"
-            assert config.offset.postgres.user == "user"
-            assert config.offset.postgres.password == "password"
+            assert config.inputs[0].offset.type == "postgres"
+            assert config.inputs[0].offset.start_from == 123456789
+            assert config.inputs[0].offset.start_from_type == "bigint"
+            assert config.inputs[0].offset.postgres.table_name == "offset_tracking"
+            assert config.inputs[0].offset.postgres.host == "db"
+            assert config.inputs[0].offset.postgres.port == 5432
+            assert config.inputs[0].offset.postgres.database == "test_db"
+            assert config.inputs[0].offset.postgres.user == "user"
+            assert config.inputs[0].offset.postgres.password == "password"
 
             assert config.secrets.use_secrets_manager is False
 
@@ -63,7 +65,7 @@ def test_load_config_invalid_yaml():
 
 def test_get_config_invalid_input_type(valid_config_dict):
     invalid_config = valid_config_dict.copy()
-    invalid_config["input"] = {
+    invalid_config["inputs"][0] = {
         "type": "invalid_source",
     }
 
@@ -82,7 +84,7 @@ def test_get_config_invalid_input_type(valid_config_dict):
 
 def test_get_config_missing_input_config(valid_config_dict):
     invalid_config = valid_config_dict.copy()
-    invalid_config["input"] = {
+    invalid_config["inputs"][0] = {
         "integration": "cloudwatch",
     }
 
