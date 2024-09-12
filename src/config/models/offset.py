@@ -8,7 +8,7 @@ from pydantic import (
     field_validator,
     StrictBool,
 )
-from typing import Optional, Union
+from typing import Optional
 from datetime import datetime
 
 
@@ -41,7 +41,7 @@ class OffsetTypes(str, Enum):
 class OffsetYamlConfig(BaseModel):
     type: OffsetTypes
     override_start_from: StrictBool = False
-    start_from: Union[StrictInt, datetime]
+    start_from: StrictInt
     start_from_type: StartFromTypes
 
     postgres: Optional[OffsetPostgresYamlConfig] = None

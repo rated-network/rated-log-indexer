@@ -13,7 +13,7 @@ from src.config.models.offset import (
 )
 from src.indexers.offset_tracker.postgres import PostgresOffsetTracker
 
-# Mock configuration data
+TEST_START_FROM = 123_456
 mock_config_data = OffsetYamlConfig(
     type=OffsetTypes.POSTGRES,
     postgres=OffsetPostgresYamlConfig(
@@ -24,7 +24,7 @@ mock_config_data = OffsetYamlConfig(
         password="password",
         table_name="test_table",
     ),
-    start_from=0,
+    start_from=TEST_START_FROM,
     start_from_type=StartFromTypes.BIGINT,
 )
 
@@ -34,7 +34,7 @@ mock_config_data = OffsetYamlConfig(
     ConfigurationManager, "load_config", return_value=Mock(offset=mock_config_data)
 )
 def tracker(mock_get_config):
-    return PostgresOffsetTracker()
+    return PostgresOffsetTracker(integration_prefix="test", config=mock_config_data)
 
 
 def test_table_exists(tracker):
@@ -48,16 +48,21 @@ def test_initial_data_exists(tracker):
         result = connection.execute(stmt)
         row = result.fetchone()
         assert row is not None
-        assert row.current_offset == 0
+        assert row.current_offset == TEST_START_FROM
 
 
 def test_postgres_offset_tracker_get_current_offset(tracker):
-    assert tracker.get_current_offset() == 0
+    assert tracker.get_current_offset() == TEST_START_FROM
 
 
 def test_postgres_offset_tracker_update_offset(tracker):
-    new_offset = 100
+    print("\nBefore update:")
+    tracker.get_current_offset()  # This will print all rows
+
+    new_offset = TEST_START_FROM + 100
     tracker.update_offset(new_offset)
+
+    print("\nAfter update:")
     assert tracker.get_current_offset() == new_offset
 
 
