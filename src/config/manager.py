@@ -9,7 +9,7 @@ from src.config.secrets.factory import SecretManagerFactory
 from src.config.models.inputs.input import InputYamlConfig
 from src.config.models.output import OutputYamlConfig
 from src.config.models.secrets import SecretsYamlConfig
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, ValidationError, model_validator
 
 logger = structlog.get_logger(__name__)
 
@@ -18,6 +18,29 @@ class RatedIndexerYamlConfig(BaseModel):
     inputs: List[InputYamlConfig]
     output: OutputYamlConfig
     secrets: SecretsYamlConfig
+
+    @model_validator(mode="after")
+    def check_integration_prefixes(cls, values):
+        integration_prefixes = [input.integration_prefix for input in values.inputs]
+
+        duplicates = set(
+            [x for x in integration_prefixes if integration_prefixes.count(x) > 1]
+        )
+        if duplicates:
+            raise ValueError(
+                f"Duplicate integration_prefix values found: {', '.join(duplicates)}"
+            )
+
+        for _input in values.inputs:
+            if (
+                _input.integration_prefix is None
+                or _input.integration_prefix.strip() == ""
+            ):
+                logger.warning(
+                    "Empty integration_prefix found in input configuration. Consider providing a value."
+                )
+
+        return values
 
 
 class ConfigurationManager:

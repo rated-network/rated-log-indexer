@@ -18,12 +18,14 @@ class TimeRange(BaseModel):
 
 
 class RatedPartition(StatefulSourcePartition[TimeRange, None]):
-    def __init__(self) -> None:
+    def __init__(self, integration_prefix: StrictStr) -> None:
         self._next_awake = datetime.now(timezone.utc)
 
         self.config = ConfigurationManager().load_config().inputs
 
-        self.offset_tracker, self.config_start_from = get_offset_tracker()
+        self.offset_tracker, self.config_start_from = get_offset_tracker(
+            integration_prefix
+        )
 
         self.current_time = self._get_current_offset()
         self.timestamp = from_milliseconds(self.current_time)
@@ -50,16 +52,8 @@ class RatedPartition(StatefulSourcePartition[TimeRange, None]):
 
         """
         current_offset = self.offset_tracker.get_current_offset()
-        config_start_from_ms = (
-            to_milliseconds(self.config_start_from)
-            if isinstance(self.config_start_from, datetime)
-            else self.config_start_from
-        )
-        current_offset_ms = (
-            to_milliseconds(current_offset)
-            if isinstance(current_offset, datetime)
-            else current_offset
-        )
+        config_start_from_ms = self.config_start_from
+        current_offset_ms = current_offset
 
         highest_offset = max(current_offset_ms, config_start_from_ms)
         if highest_offset > current_offset_ms:
@@ -111,12 +105,12 @@ class RatedSource(FixedPartitionedSource[TimeRange, None]):
     emits a safe range to fetch
     """
 
-    def __init__(self):
-        pass
+    def __init__(self, integration_prefix: str):
+        self.integration_prefix = integration_prefix
 
     def list_parts(self):
         return ["single-part"]
 
     def build_part(self, step_id: StrictStr, for_key: StrictStr, resume_state: Any):
         assert for_key == "single-part"
-        return RatedPartition()
+        return RatedPartition(self.integration_prefix)

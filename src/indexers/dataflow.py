@@ -81,7 +81,7 @@ def parse_config(
 ]:
     inputs = []
     for input_config in config.inputs:
-        input_source = RatedSource()
+        input_source = RatedSource(integration_prefix=input_config.integration_prefix)
         client_config = (
             input_config.cloudwatch
             if input_config.integration == IntegrationTypes.CLOUDWATCH
