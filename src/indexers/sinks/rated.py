@@ -242,7 +242,7 @@ class _HTTPSinkPartition(StatelessSinkPartition):
 
     def write_batch(self, items: List[Any]) -> None:
         """
-        Add a batch of items to the current batch and trigger a flush if needed.
+        Add a batch of items to the current batch and trigger flushes as needed.
 
         Args:
             items (List[Any]): List of events to be added to the batch.
@@ -253,8 +253,12 @@ class _HTTPSinkPartition(StatelessSinkPartition):
                 f"Added item to batch. Current batch size: {len(self.batch)}",
                 integration_prefix=self.integration_prefix,
             )
+            if len(self.batch) >= self.batch_size:
+                asyncio.run(self._flush_if_needed())
+
         # Flush any remaining items after batch write
-        asyncio.run(self._flush_if_needed())
+        if self.batch:
+            asyncio.run(self._flush_if_needed())
 
     def close(self):
         """
