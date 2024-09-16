@@ -1,12 +1,13 @@
-import asyncio
 import json
-from typing import Any, List, Dict
+from typing import Any, List, Dict, Iterator
 import time
 from collections import deque
 import structlog
 import httpx
 from bytewax.outputs import DynamicSink, StatelessSinkPartition
 from dataclasses import dataclass
+
+from pydantic import StrictInt, StrictBool, StrictFloat
 
 from src.config.models.output import RatedOutputConfig
 from src.indexers.filters.types import FilteredEvent
@@ -97,28 +98,18 @@ class _HTTPSinkPartition(StatelessSinkPartition):
         self.worker_index = worker_index
         self.integration_prefix = integration_prefix
         self.config = config
-        self.client = httpx.AsyncClient()
+        self.client = httpx.Client()
         self.max_concurrent_requests = 5
-        self.batch_size: int = 50
-        self.batch_timeout_seconds: int = 10
+        self.batch_size: StrictInt = 50
+        self.batch_timeout_seconds: StrictInt = 10
         self.batch: Any = deque()
-        self.last_flush_time: float = time.time()
-        self.flush_in_progress: bool = False
+        self.last_flush_time: StrictFloat = time.time()
+        self.flush_in_progress: StrictBool = False
         logger.debug(
             f"Worker {self.worker_index} initialized",
             integration_prefix=self.integration_prefix,
             http_endpoint=self.config.ingestion_url,
         )
-
-    async def _flush_if_needed(self):
-        """
-        Check if the current batch needs to be flushed based on size or timeout.
-        If a flush is needed and not already in progress, it triggers the flush operation.
-        """
-        if self.should_flush() and not self.flush_in_progress:
-            self.flush_in_progress = True
-            await self.flush_batch()
-            self.flush_in_progress = False
 
     def _compose_body(self, items: List[FilteredEvent]) -> List[dict]:
         """
@@ -130,14 +121,26 @@ class _HTTPSinkPartition(StatelessSinkPartition):
         Returns:
             List[dict]: The HTTP request body in dictionary format.
         """
-        return [
-            SlaOsApiBody.from_filtered_event(
-                event=item,
-                key=self.config.ingestion_key,
-                integration_prefix=self.integration_prefix,
-            ).__dict__
-            for item in items
-        ]
+        body = []
+        reserved_keys = ["customer_id", "timestamp", "key"]
+
+        for item in items:
+            event_data: dict = {
+                "customer_id": item.customer_id,
+                "timestamp": item.event_timestamp.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "key": self.config.ingestion_key,
+            }
+
+            prefixed_values: dict = SlaOsApiBody.parse_and_prefix_values(
+                item.values, self.integration_prefix
+            )
+            event_data["values"] = {
+                k: v for k, v in prefixed_values.items() if k not in reserved_keys
+            }
+
+            body.append(event_data)
+
+        return body
 
     def _compose_headers(self) -> dict:
         """
@@ -159,59 +162,26 @@ class _HTTPSinkPartition(StatelessSinkPartition):
         """
         return f"{self.config.ingestion_url}/{self.config.ingestion_id}/{self.config.ingestion_key}"
 
-    async def send_batch(self, items: List[FilteredEvent]) -> None:
+    def write(self, item: Dict) -> None:
         """
-        Send a batch of events to the HTTP endpoint.
+        Process a single item.
+        """
+        self.process_items(iter([item]))
 
-        Args:
-            items (List[FilteredEvent]): List of events to be sent.
+    def write_batch(self, items: List[Dict]) -> None:
+        """
+        Process a batch of items.
+        """
+        self.process_items(iter(items))
 
-        Raises:
-            httpx.HTTPError: If the HTTP request fails.
+    def process_items(self, items_iterator: Iterator[Dict]) -> None:
         """
-        try:
-            body = self._compose_body(items)
-            headers = self._compose_headers()
-            url = self._compose_url()
-            logger.info(f"Sending batch of {len(items)} items to {url}")
-            response = await self.client.post(url, json=body, headers=headers)
-            response.raise_for_status()
-            logger.debug(
-                f"Worker {self.worker_index} successfully sent batch to HTTP endpoint",
-                batch_size=len(items),
-                integration_prefix=self.integration_prefix,
-            )
-        except httpx.HTTPError as e:
-            logger.error(
-                f"Worker {self.worker_index} HTTP error: {e}",
-                items=items,
-                integration_prefix=self.integration_prefix,
-            )
-            raise
-        except Exception as e:
-            logger.error(
-                f"Worker {self.worker_index} error: {e}",
-                items=items,
-                integration_prefix=self.integration_prefix,
-            )
-
-    async def flush_batch(self) -> None:
+        Process items using an iterator, flushing when necessary.
         """
-        Flush the current batch of events. Sends them to the HTTP endpoint and clears the batch.
-        """
-        if self.batch:
-            items = list(self.batch)
-            self.batch.clear()
-            await self.send_batch(items)
-            self.last_flush_time = time.time()
-            logger.debug(
-                f"Flushed batch of {len(items)} items",
-                integration_prefix=self.integration_prefix,
-            )
-        else:
-            logger.debug(
-                "No items to flush", integration_prefix=self.integration_prefix
-            )
+        for item in items_iterator:
+            self.batch.append(item)
+            if self.should_flush():
+                self.flush_batch()
 
     def should_flush(self) -> bool:
         """
@@ -225,52 +195,52 @@ class _HTTPSinkPartition(StatelessSinkPartition):
             and self.batch
         )
 
-    def write(self, item: Any) -> None:
+    def flush_batch(self) -> None:
         """
-        Add an item to the current batch and trigger a flush if needed.
+        Flush the current batch of events.
+        """
+        if self.batch:
+            self.send_batch(self.batch)
+            self.batch = []
+            self.last_flush_time = time.time()
 
-        Args:
-            item (Any): The event to be added to the batch.
+    def send_batch(self, items: List[FilteredEvent]) -> None:
         """
-        self.batch.append(item)
-        logger.debug(
-            f"Added item to batch. Current batch size: {len(self.batch)}",
-            integration_prefix=self.integration_prefix,
-        )
-        # Schedule flush if needed
-        asyncio.run(self._flush_if_needed())
-
-    def write_batch(self, items: List[Any]) -> None:
+        Send a batch of events to the HTTP endpoint.
         """
-        Add a batch of items to the current batch and trigger flushes as needed.
-
-        Args:
-            items (List[Any]): List of events to be added to the batch.
-        """
-        for item in items:
-            self.batch.append(item)
+        try:
+            body = self._compose_body(items)
+            headers = self._compose_headers()
+            url = self._compose_url()
+            logger.info(f"Sending batch of {len(items)} items to {url}")
+            response = self.client.post(url, json=body, headers=headers)
+            response.raise_for_status()
             logger.debug(
-                f"Added item to batch. Current batch size: {len(self.batch)}",
+                f"Worker {self.worker_index} successfully sent batch to HTTP endpoint",
+                batch_size=len(items),
                 integration_prefix=self.integration_prefix,
             )
-            if len(self.batch) >= self.batch_size:
-                asyncio.run(self._flush_if_needed())
-
-        # Flush any remaining items after batch write
-        if self.batch:
-            asyncio.run(self._flush_if_needed())
+        except httpx.HTTPError as e:
+            logger.error(
+                f"Worker {self.worker_index} HTTP error sending batch: {e}",
+                integration_prefix=self.integration_prefix,
+                batch_size=len(items),
+            )
+            raise
+        except Exception as e:
+            logger.error(
+                f"Worker {self.worker_index} error sending batch: {e}",
+                integration_prefix=self.integration_prefix,
+                batch_size=len(items),
+            )
+            raise
 
     def close(self):
         """
-        Close the HTTP client and ensure any remaining items are flushed.
+        Flush any remaining items and close the HTTP client.
         """
-        if self.batch:
-            logger.info(
-                "Flushing remaining items in close",
-                integration_prefix=self.integration_prefix,
-            )
-            asyncio.run(self.flush_batch())
-        asyncio.run(self.client.aclose())
+        self.flush_batch()
+        self.client.close()
         logger.info(
             f"Worker {self.worker_index} HTTP sink closed",
             integration_prefix=self.integration_prefix,
