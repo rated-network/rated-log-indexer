@@ -4,21 +4,37 @@ import structlog
 from rated_parser import LogParser  # type: ignore
 from rated_parser.payloads.inputs import RawTextLogPatternPayload, JsonLogPatternPayload, LogFormat as RatedParserLogFormat  # type: ignore
 
+from src.config.models.inputs.input import InputTypes
 from src.config.models.filters import FiltersYamlConfig
-from src.indexers.filters.types import FilteredEvent, LogEntry, MetricEntry
-from src.utils.time_conversion import to_milliseconds
+from src.indexers.filters.types import (
+    FilteredEvent,
+    LogEntry,
+    MetricEntry,
+    generate_idempotency_key,
+)
 
 logger = structlog.getLogger(__name__)
 
 
 class FilterManager:
-    def __init__(self, filter_config: FiltersYamlConfig, integration_prefix: str):
+    def __init__(
+        self,
+        filter_config: Optional[FiltersYamlConfig],
+        integration_prefix: str,
+        input_type: InputTypes,
+    ):
         self.log_parser = LogParser()
+        self.input_type = input_type
         self.filter_config = filter_config
         self.integration_prefix = integration_prefix
         self._initialize_parser()
 
     def _initialize_parser(self):
+        if self.input_type == InputTypes.METRICS:
+            """No need to add pattern for metrics"""
+            return
+        if not self.filter_config:
+            raise ValueError("FiltersYamlConfig is required for logs input type")
         pattern = {
             "version": self.filter_config.version,
             "log_format": self.filter_config.log_format,
@@ -41,7 +57,7 @@ class FilterManager:
         """
         try:
             parsed_log = self.log_parser.parse_log(
-                log_entry.content, version=self.filter_config.version
+                log_entry.content, version=self.filter_config.version  # type: ignore
             )
             fields = parsed_log.parsed_fields
             if not fields or not fields.get("customer_id"):
@@ -49,7 +65,7 @@ class FilterManager:
 
             return FilteredEvent(
                 integration_prefix=self.integration_prefix,
-                event_id=log_entry.log_id,
+                idempotency_key=log_entry.log_id,
                 event_timestamp=log_entry.event_timestamp,
                 customer_id=parsed_log.parsed_fields.get(
                     "customer_id", "MISSING_CUSTOMER_ID"
@@ -68,9 +84,15 @@ class FilterManager:
         Returns parsed fields dictionary from the metrics entry if the metrics entry is successfully parsed and filtered.
         """
         try:
+            idempotency_key = generate_idempotency_key(
+                event_timestamp=metrics_entry.event_timestamp,
+                customer_id=metrics_entry.customer_id,
+                values={metrics_entry.metric_name: metrics_entry.value},
+            )
+
             return FilteredEvent(
                 integration_prefix=self.integration_prefix,
-                event_id=f"{metrics_entry.metric_name}_{metrics_entry.customer_id}_{to_milliseconds(metrics_entry.event_timestamp)}",
+                idempotency_key=idempotency_key,
                 event_timestamp=metrics_entry.event_timestamp,
                 customer_id=metrics_entry.customer_id,
                 values={metrics_entry.metric_name: metrics_entry.value},

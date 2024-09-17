@@ -1,10 +1,13 @@
 import json
 
+import pytest
 from bytewax.dataflow import Dataflow
 from bytewax.testing import run_main, TestingSource
 from bytewax import operators as op
 from pytest_httpx import HTTPXMock
 
+from src.config.models.output import RatedOutputConfig
+from src.indexers.sinks.rated import build_http_sink
 from src.indexers.filters.types import FilteredEvent
 from datetime import timedelta
 
@@ -27,7 +30,7 @@ def test_http_sink_3_events(
         test_events
     ), f"Expected {len(test_events)} events, but got {len(body)}"
 
-    endpoint = "https://your_ingestion_url.com"
+    endpoint = "https://your_ingestion_url.com/v1/ingest"
 
     for event_data, event in zip(body, test_events):
         assert request.method == "POST"
@@ -51,7 +54,7 @@ def test_http_sink_batch_size(
         new_event = FilteredEvent(
             integration_prefix="",
             customer_id=f"{event.customer_id}_{i}",
-            event_id=f"{event.event_id}_{i}",
+            idempotency_key=f"{event.idempotency_key}_{i}",
             event_timestamp=event.event_timestamp + timedelta(seconds=i),
             values={"example_key": f"example_value_{i}"},
         )
@@ -83,7 +86,7 @@ def test_http_sink_mixed_scenario(
         new_event = FilteredEvent(
             integration_prefix="",
             customer_id=f"{event.customer_id}_{i}",
-            event_id=f"{event.event_id}_{i}",
+            idempotency_key=f"{event.idempotency_key}_{i}",
             event_timestamp=event.event_timestamp + timedelta(seconds=i),
             values={"example_key": f"example_value_{i}"},
         )
@@ -116,7 +119,7 @@ def test_http_sink_time_based_under_timeout(
         FilteredEvent(
             integration_prefix="",
             customer_id=f"{event.customer_id}_new_{i}",
-            event_id=f"{event.event_id}_new_{i}",
+            idempotency_key=f"{event.idempotency_key}_new_{i}",
             event_timestamp=event.event_timestamp + timedelta(seconds=8),
             values={"example_key": f"new_value_{i}"},
         )
@@ -163,7 +166,7 @@ def test_http_sink_time_based_over_timeout(
         FilteredEvent(
             integration_prefix="",
             customer_id=f"{event.customer_id}_new_{i}",
-            event_id=f"{event.event_id}_new_{i}",
+            idempotency_key=f"{event.idempotency_key}_new_{i}",
             event_timestamp=event.event_timestamp + timedelta(seconds=11),
             values={"example_key": f"new_value_{i}"},
         )
@@ -220,4 +223,50 @@ def test_http_sink_time_based_over_timeout(
                 event["customer_id"] == f"{test_events[i-3].customer_id}_new_{i-3}"
             ), f"Mismatch in event {i} of second batch"
 
+    assert not stderr.getvalue(), f"Unexpected error output: {stderr.getvalue()}"
+
+
+@pytest.mark.skip(reason="To be implemented")
+def test_http_sink_with_integration_prefix(
+    httpx_mock: HTTPXMock, test_events, capture_output
+):
+    config = RatedOutputConfig(
+        ingestion_id="your_ingestion_id",
+        ingestion_key="your_ingestion_key",
+        ingestion_url="https://your_ingestion_url.com/v1/ingest",
+    )
+    integration_prefix = "test_integration"
+    http_sink = build_http_sink(config, integration_prefix)
+
+    # Mock the HTTP response
+    httpx_mock.add_response(
+        method="POST",
+        url=f"{config.ingestion_url}/{config.ingestion_id}/{config.ingestion_key}",
+        status_code=200,
+        json={"status": "success"},
+    )
+
+    flow = Dataflow(flow_id="test_http_sink_prefix")
+    input_source: TestingSource = TestingSource(test_events)
+    op.input("read", flow=flow, source=input_source).then(op.output, "out", http_sink)
+
+    run_main(flow)
+
+    requests = httpx_mock.get_requests()
+    assert len(requests) == 1, "Expected 1 request"
+
+    request = requests[0]
+    body = json.loads(request.content)
+
+    assert len(body) == len(
+        test_events
+    ), f"Expected {len(test_events)} events, but got {len(body)}"
+    for item in body:
+        for key in item["values"]:
+
+            assert key.startswith(
+                f"{integration_prefix}_"
+            ), f"Metric {key} does not start with the integration prefix {integration_prefix}"
+
+    stdout, stderr = capture_output
     assert not stderr.getvalue(), f"Unexpected error output: {stderr.getvalue()}"
