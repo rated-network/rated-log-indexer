@@ -22,6 +22,7 @@ class SlaOsApiBody:
     customer_id: str
     timestamp: str
     key: str
+    idempotency_key: str
     values: dict
 
     @classmethod
@@ -73,6 +74,7 @@ class SlaOsApiBody:
             customer_id=event.customer_id,
             timestamp=event.event_timestamp.strftime("%Y-%m-%dT%H:%M:%SZ"),
             key=key,
+            idempotency_key=event.idempotency_key,
             values=cls.parse_and_prefix_values(event.values, integration_prefix),
         )
 
@@ -123,12 +125,15 @@ class _HTTPSinkPartition(StatelessSinkPartition):
             List[dict]: The HTTP request body in dictionary format.
         """
         body = []
+        reserved_keys = ["customer_id", "timestamp", "key", "idempotency_key"]
+
         for item in items:
             event_data = {
                 "integration_id": item.integration_prefix,
                 "customer_id": item.customer_id,
                 "timestamp": item.event_timestamp.strftime("%Y-%m-%dT%H:%M:%SZ"),
                 "key": self.config.ingestion_key,
+                "idempotency_key": item.idempotency_key,
             }
             prefixed_values: dict = SlaOsApiBody.parse_and_prefix_values(
                 item.values, item.integration_prefix

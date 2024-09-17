@@ -5,8 +5,12 @@ from rated_parser import LogParser  # type: ignore
 from rated_parser.payloads.inputs import RawTextLogPatternPayload, JsonLogPatternPayload, LogFormat as RatedParserLogFormat  # type: ignore
 
 from src.config.models.filters import FiltersYamlConfig
-from src.indexers.filters.types import FilteredEvent, LogEntry, MetricEntry
-from src.utils.time_conversion import to_milliseconds
+from src.indexers.filters.types import (
+    FilteredEvent,
+    LogEntry,
+    MetricEntry,
+    generate_idempotency_key,
+)
 
 logger = structlog.getLogger(__name__)
 
@@ -49,7 +53,7 @@ class FilterManager:
 
             return FilteredEvent(
                 integration_prefix=self.integration_prefix,
-                event_id=log_entry.log_id,
+                idempotency_key=log_entry.log_id,
                 event_timestamp=log_entry.event_timestamp,
                 customer_id=parsed_log.parsed_fields.get(
                     "customer_id", "MISSING_CUSTOMER_ID"
@@ -68,9 +72,15 @@ class FilterManager:
         Returns parsed fields dictionary from the metrics entry if the metrics entry is successfully parsed and filtered.
         """
         try:
+            idempotency_key = generate_idempotency_key(
+                event_timestamp=metrics_entry.event_timestamp,
+                customer_id=metrics_entry.customer_id,
+                values={metrics_entry.metric_name: metrics_entry.value},
+            )
+
             return FilteredEvent(
                 integration_prefix=self.integration_prefix,
-                event_id=f"{metrics_entry.metric_name}_{metrics_entry.customer_id}_{to_milliseconds(metrics_entry.event_timestamp)}",
+                idempotency_key=idempotency_key,
                 event_timestamp=metrics_entry.event_timestamp,
                 customer_id=metrics_entry.customer_id,
                 values={metrics_entry.metric_name: metrics_entry.value},

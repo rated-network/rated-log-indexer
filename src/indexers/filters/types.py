@@ -1,3 +1,4 @@
+import hashlib
 import json
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -5,6 +6,18 @@ from typing import Dict, Any, Union
 
 from src.utils.logger import logger
 from src.utils.time_conversion import from_milliseconds
+
+
+def generate_idempotency_key(
+    event_timestamp: datetime, customer_id: str, values: dict
+) -> str:
+    """
+    Generate an idempotency key based on event timestamp, customer ID, and values.
+    """
+    timestamp_str = event_timestamp.isoformat()
+    sorted_values = sorted(values.items())
+    components = f"{timestamp_str}|{customer_id}|{sorted_values}"
+    return hashlib.sha256(components.encode()).hexdigest()
 
 
 @dataclass
@@ -101,7 +114,7 @@ class MetricEntry:
 @dataclass
 class FilteredEvent:
     integration_prefix: str
-    event_id: str
+    idempotency_key: str
     event_timestamp: datetime
     customer_id: str
     values: dict

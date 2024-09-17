@@ -51,7 +51,7 @@ def test_http_sink_batch_size(
         new_event = FilteredEvent(
             integration_prefix="",
             customer_id=f"{event.customer_id}_{i}",
-            event_id=f"{event.event_id}_{i}",
+            idempotency_key=f"{event.idempotency_key}_{i}",
             event_timestamp=event.event_timestamp + timedelta(seconds=i),
             values={"example_key": f"example_value_{i}"},
         )
@@ -83,7 +83,7 @@ def test_http_sink_mixed_scenario(
         new_event = FilteredEvent(
             integration_prefix="",
             customer_id=f"{event.customer_id}_{i}",
-            event_id=f"{event.event_id}_{i}",
+            idempotency_key=f"{event.idempotency_key}_{i}",
             event_timestamp=event.event_timestamp + timedelta(seconds=i),
             values={"example_key": f"example_value_{i}"},
         )
@@ -116,7 +116,7 @@ def test_http_sink_time_based_under_timeout(
         FilteredEvent(
             integration_prefix="",
             customer_id=f"{event.customer_id}_new_{i}",
-            event_id=f"{event.event_id}_new_{i}",
+            idempotency_key=f"{event.idempotency_key}_new_{i}",
             event_timestamp=event.event_timestamp + timedelta(seconds=8),
             values={"example_key": f"new_value_{i}"},
         )
@@ -163,7 +163,7 @@ def test_http_sink_time_based_over_timeout(
         FilteredEvent(
             integration_prefix="",
             customer_id=f"{event.customer_id}_new_{i}",
-            event_id=f"{event.event_id}_new_{i}",
+            idempotency_key=f"{event.idempotency_key}_new_{i}",
             event_timestamp=event.event_timestamp + timedelta(seconds=11),
             values={"example_key": f"new_value_{i}"},
         )

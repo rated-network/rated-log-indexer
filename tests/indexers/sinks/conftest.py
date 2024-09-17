@@ -23,7 +23,7 @@ def test_events():
         {
             "integration_prefix": "",
             "customer_id": "customer_id_one",
-            "event_id": "mock_log_one",
+            "idempotency_key": "mock_log_one",
             "event_timestamp": datetime.fromtimestamp(
                 1723041096000 / 1000, tz=timezone.utc
             ),
@@ -32,7 +32,7 @@ def test_events():
         {
             "integration_prefix": "",
             "customer_id": "customer_id_two",
-            "event_id": "mock_log_two",
+            "idempotency_key": "mock_log_two",
             "event_timestamp": datetime.fromtimestamp(
                 1723041096100 / 1000, tz=timezone.utc
             ),
@@ -41,7 +41,7 @@ def test_events():
         {
             "integration_prefix": "",
             "customer_id": "customer_id_three",
-            "event_id": "mock_log_three",
+            "idempotency_key": "mock_log_three",
             "event_timestamp": datetime.fromtimestamp(
                 1723041096200 / 1000, tz=timezone.utc
             ),
