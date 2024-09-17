@@ -33,8 +33,11 @@ def test_load_config_valid(valid_config_yaml):
             )
 
             assert config.output.type == "rated"
-            assert config.output.rated.ingestion_id == "your_ingestion_id"
-            assert config.output.rated.ingestion_key == "your_ingestion_key"
+            assert (
+                config.output.rated.ingestion_id
+                == "6fa9df30-3746-4f73-b730-5f717ea0d56f"
+            )
+            assert config.output.rated.ingestion_key == "ingestKEYOXVnw6deLQ5AQ"
 
             assert config.inputs[0].offset.type == "postgres"
             assert config.inputs[0].offset.start_from == 123456789

@@ -1,13 +1,31 @@
 import enum
 from typing import Optional
+import re
 
-from pydantic import BaseModel, StrictStr, model_validator, StrictBool
+from pydantic import (
+    BaseModel,
+    StrictStr,
+    model_validator,
+    StrictBool,
+    field_validator,
+)
 
 
 class RatedOutputConfig(BaseModel):
     ingestion_id: StrictStr
     ingestion_key: StrictStr
     ingestion_url: StrictStr
+
+    @field_validator("ingestion_url")
+    def validate_ingestion_url(cls, v):
+        if v.startswith("secret:"):
+            return v
+        v = v.rstrip("/")
+        if not re.match(r"^https?://.*?/v\d+/ingest$", v):
+            raise ValueError(
+                'ingestion_url must end with v{version_number}/ingest or start with "secret:"'
+            )
+        return v
 
 
 class ConsoleOutputConfig(BaseModel):

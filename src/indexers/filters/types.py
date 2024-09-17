@@ -15,7 +15,7 @@ def generate_idempotency_key(
     Generate an idempotency key based on event timestamp, customer ID, and values.
     """
     timestamp_str = event_timestamp.isoformat()
-    sorted_values = sorted(values.items())
+    sorted_values = json.dumps(values, sort_keys=True)
     components = f"{timestamp_str}|{customer_id}|{sorted_values}"
     return hashlib.sha256(components.encode()).hexdigest()
 

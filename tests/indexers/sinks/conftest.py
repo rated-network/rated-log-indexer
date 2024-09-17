@@ -53,7 +53,7 @@ def test_events():
 
 @pytest.fixture
 def http_sink(httpx_mock: HTTPXMock):
-    endpoint = "https://your_ingestion_url.com"
+    endpoint = "https://your_ingestion_url.com/v1/ingest"
     httpx_mock.add_response(
         method="POST",
         url=f"{endpoint}/your_ingestion_id/your_ingestion_key",

@@ -53,7 +53,7 @@ def test_logs_dataflow(
     sample_log_entries = [LogEntry.from_cloudwatch_log(log) for log in sample_logs]
     mock_fetch_cloudwatch_logs.return_value = iter(sample_log_entries)
 
-    endpoint = "https://your_ingestion_url.com"
+    endpoint = "https://your_ingestion_url.com/v1/ingest"
     httpx_mock.add_response(
         method="POST",
         url=f"{endpoint}/your_ingestion_id/your_ingestion_key",
@@ -179,7 +179,7 @@ def test_metrics_dataflow(
     ]
     mock_fetch_metrics.return_value = iter(sample_metric_entries)
 
-    endpoint = "https://your_ingestion_url.com"
+    endpoint = "https://your_ingestion_url.com/v1/ingest"
     httpx_mock.add_response(
         method="POST",
         url=f"{endpoint}/your_ingestion_id/your_ingestion_key",
@@ -320,7 +320,7 @@ def test_multiple_inputs_dataflow(
     sample_log_entries = [LogEntry.from_cloudwatch_log(log) for log in sample_logs]
     mock_fetch_logs.return_value = iter(sample_log_entries)
 
-    endpoint = "https://your_ingestion_url.com"
+    endpoint = "https://your_ingestion_url.com/v1/ingest"
     httpx_mock.add_response(
         method="POST",
         url=f"{endpoint}/your_ingestion_id/your_ingestion_key",
@@ -562,7 +562,7 @@ def test_metrics_logs_inputs_dataflow(
     sample_log_entries = [LogEntry.from_cloudwatch_log(log) for log in sample_logs]
     mock_fetch_logs.return_value = iter(sample_log_entries)
 
-    endpoint = "https://your_ingestion_url.com"
+    endpoint = "https://your_ingestion_url.com/v1/ingest"
     httpx_mock.add_response(
         method="POST",
         url=f"{endpoint}/your_ingestion_id/your_ingestion_key",

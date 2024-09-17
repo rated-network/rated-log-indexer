@@ -63,9 +63,9 @@ def valid_config_dict():
         "output": {
             "type": "rated",
             "rated": {
-                "ingestion_id": "your_ingestion_id",
-                "ingestion_key": "your_ingestion_key",
-                "ingestion_url": "https://your_ingestion_url.com",
+                "ingestion_id": "6fa9df30-3746-4f73-b730-5f717ea0d56f",
+                "ingestion_key": "ingestKEYOXVnw6deLQ5AQ",
+                "ingestion_url": "https://your_ingestion_url.com/v1/ingest",
             },
         },
         "secrets": {"use_secrets_manager": False},
