@@ -1,5 +1,5 @@
 import json
-from typing import Any, List, Dict, Iterator
+from typing import Any, List, Dict, Iterator, Tuple
 import time
 from collections import deque
 
@@ -163,14 +163,23 @@ class _HTTPSinkPartition(StatelessSinkPartition):
             "Content-Type": "application/json",
         }
 
-    def _compose_url(self) -> str:
+    def _compose_url(self) -> Tuple[str, str]:
         """
-        Compose the target URL for the HTTP request.
+        Compose the target URL for the HTTP request and a redacted version for logging.
 
         Returns:
-            str: The complete URL to send the request to.
+            Tuple[str, str]: A tuple containing (full_url, redacted_url)
         """
-        return f"{self.config.ingestion_url}/{self.config.ingestion_id}/{self.config.ingestion_key}"
+        ingestion_id = self.config.ingestion_id
+        ingestion_key = self.config.ingestion_key
+
+        full_url = f"{self.config.ingestion_url}/{ingestion_id}/{ingestion_key}"
+
+        redacted_id = ingestion_id[:5] + "*" * (len(ingestion_id) - 5)
+        redacted_key = ingestion_key[:5] + "*" * (len(ingestion_key) - 5)
+        redacted_url = f"{self.config.ingestion_url}/{redacted_id}/{redacted_key}"
+
+        return full_url, redacted_url
 
     def write(self, item: Dict) -> None:
         """
@@ -223,14 +232,15 @@ class _HTTPSinkPartition(StatelessSinkPartition):
         try:
             body = self._compose_body(items)
             headers = self._compose_headers()
-            url = self._compose_url()
-            logger.info(f"Sending batch of {len(items)} items to {url}")
+            url, redacted_url = self._compose_url()
+            logger.info(f"Sending batch of {len(items)} items to {redacted_url}")
             response = self.client.post(url, json=body, headers=headers)
             response.raise_for_status()
             logger.debug(
                 f"Worker {self.worker_index} successfully sent batch to HTTP endpoint",
                 batch_size=len(items),
                 integration_prefix=integration_prefix,
+                url=redacted_url,
             )
         except httpx.HTTPError as e:
             logger.error(
