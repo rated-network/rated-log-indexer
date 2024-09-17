@@ -593,7 +593,7 @@ def test_metrics_logs_inputs_dataflow(
     body = json.loads(request.content)
 
     metric_count = sum(
-        1 for item in body if "datadog_integration_prefix_test.metric" in item["values"]
+        1 for item in body if "datadog_integration_prefix_test_metric" in item["values"]
     )
     log_count = sum(
         1
