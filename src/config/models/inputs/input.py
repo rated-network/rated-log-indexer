@@ -25,11 +25,21 @@ class InputYamlConfig(BaseModel):
     )
     integration: IntegrationTypes
     type: InputTypes
-    filters: FiltersYamlConfig
+    filters: Optional[FiltersYamlConfig] = None
     offset: OffsetYamlConfig
 
     cloudwatch: Optional[CloudwatchConfig] = None
     datadog: Optional[DatadogConfig] = None
+
+    @model_validator(mode="before")
+    def validate_filters_requirement(cls, values):
+        input_type = values.get("type")
+        filters = values.get("filters")
+
+        if input_type == InputTypes.LOGS and filters is None:
+            raise ValueError("'filters' is mandatory when input type is LOGS")
+
+        return values
 
     @model_validator(mode="before")
     def validate_input_config(cls, values):

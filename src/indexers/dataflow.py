@@ -89,7 +89,7 @@ def parse_config(
         )
         fetcher = fetch_logs if input_config.type == InputTypes.LOGS else fetch_metrics
         filter_manager = FilterManager(
-            input_config.filters, input_config.integration_prefix
+            input_config.filters, input_config.integration_prefix, input_config.type
         )
 
         filter_logic = (

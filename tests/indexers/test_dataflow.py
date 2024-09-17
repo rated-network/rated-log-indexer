@@ -1,6 +1,7 @@
 import json
 from unittest.mock import patch
 
+import pytest
 from bytewax.testing import run_main, TestingSource
 from pytest_httpx import HTTPXMock
 from rated_parser.payloads.inputs import JsonFieldDefinition, LogFormat, FieldType  # type: ignore
@@ -28,6 +29,17 @@ from src.config.manager import RatedIndexerYamlConfig
 from src.indexers.dataflow import build_dataflow
 
 
+@pytest.fixture
+def mocked_ingestion_endpoint(httpx_mock: HTTPXMock):
+    endpoint = "https://your_ingestion_url.com/v1/ingest"
+    httpx_mock.add_response(
+        method="POST",
+        url=f"{endpoint}/your_ingestion_id/your_ingestion_key",
+        status_code=200,
+    )
+    return endpoint
+
+
 @patch("src.indexers.dataflow.fetch_logs")
 @patch("src.config.manager.ConfigurationManager.load_config")
 def test_logs_dataflow(
@@ -35,6 +47,7 @@ def test_logs_dataflow(
     mock_fetch_cloudwatch_logs,
     httpx_mock: HTTPXMock,
     valid_config_dict,
+    mocked_ingestion_endpoint,
 ):
     valid_config = RatedIndexerYamlConfig(**valid_config_dict)
     mock_load_config.return_value = valid_config
@@ -53,17 +66,10 @@ def test_logs_dataflow(
     sample_log_entries = [LogEntry.from_cloudwatch_log(log) for log in sample_logs]
     mock_fetch_cloudwatch_logs.return_value = iter(sample_log_entries)
 
-    endpoint = "https://your_ingestion_url.com/v1/ingest"
-    httpx_mock.add_response(
-        method="POST",
-        url=f"{endpoint}/your_ingestion_id/your_ingestion_key",
-        status_code=200,
-    )
-
     output_config = RatedOutputConfig(
         ingestion_id="your_ingestion_id",
         ingestion_key="your_ingestion_key",
-        ingestion_url=endpoint,
+        ingestion_url=mocked_ingestion_endpoint,
     )
     filter_config = FiltersYamlConfig(
         version=1,
@@ -87,7 +93,7 @@ def test_logs_dataflow(
             ),
         ],
     )
-    filter_manager = FilterManager(filter_config, "integration_prefix")
+    filter_manager = FilterManager(filter_config, "integration_prefix", InputTypes.LOGS)
 
     mock_input = TestingSource([TimeRange(start_time=1, end_time=2)])
     inputs = [
@@ -126,6 +132,7 @@ def test_metrics_dataflow(
     mock_fetch_metrics,
     httpx_mock: HTTPXMock,
     valid_config_dict,
+    mocked_ingestion_endpoint,
 ):
     config = RatedIndexerYamlConfig(**valid_config_dict)
     config.inputs[0].type = InputTypes.METRICS
@@ -179,22 +186,15 @@ def test_metrics_dataflow(
     ]
     mock_fetch_metrics.return_value = iter(sample_metric_entries)
 
-    endpoint = "https://your_ingestion_url.com/v1/ingest"
-    httpx_mock.add_response(
-        method="POST",
-        url=f"{endpoint}/your_ingestion_id/your_ingestion_key",
-        status_code=200,
-    )
-
     output_config = RatedOutputConfig(
         ingestion_id="your_ingestion_id",
         ingestion_key="your_ingestion_key",
-        ingestion_url=endpoint,
+        ingestion_url=mocked_ingestion_endpoint,
     )
 
     mock_input = TestingSource([TimeRange(start_time=1, end_time=2)])
     filter_manager = FilterManager(
-        config.inputs[0].filters, "datadog_integration_prefix"
+        None, "datadog_integration_prefix", InputTypes.METRICS
     )
     inputs = [
         (
@@ -232,6 +232,7 @@ def test_multiple_inputs_dataflow(
     mock_fetch_logs,
     httpx_mock: HTTPXMock,
     valid_config_dict,
+    mocked_ingestion_endpoint,
 ):
     config = RatedIndexerYamlConfig(**valid_config_dict)
     cloudwatch_config = InputYamlConfig(
@@ -320,24 +321,17 @@ def test_multiple_inputs_dataflow(
     sample_log_entries = [LogEntry.from_cloudwatch_log(log) for log in sample_logs]
     mock_fetch_logs.return_value = iter(sample_log_entries)
 
-    endpoint = "https://your_ingestion_url.com/v1/ingest"
-    httpx_mock.add_response(
-        method="POST",
-        url=f"{endpoint}/your_ingestion_id/your_ingestion_key",
-        status_code=200,
-    )
-
     output_config = RatedOutputConfig(
         ingestion_id="your_ingestion_id",
         ingestion_key="your_ingestion_key",
-        ingestion_url=endpoint,
+        ingestion_url=mocked_ingestion_endpoint,
     )
 
     mock_input_logs1 = TestingSource([TimeRange(start_time=1, end_time=2)])
     mock_input_logs2 = TestingSource([TimeRange(start_time=1, end_time=2)])
 
     filter_manager = FilterManager(
-        config.inputs[0].filters, "cloudwatch_integration_prefix"
+        config.inputs[0].filters, "cloudwatch_integration_prefix", InputTypes.LOGS
     )
 
     inputs = [
@@ -398,6 +392,7 @@ def test_metrics_logs_inputs_dataflow(
     mock_fetch_metrics,
     httpx_mock: HTTPXMock,
     valid_config_dict,
+    mocked_ingestion_endpoint,
 ):
     config = RatedIndexerYamlConfig(**valid_config_dict)
 
@@ -429,30 +424,7 @@ def test_metrics_logs_inputs_dataflow(
                 host="localhost", port=6379, db=0, key="offset_tracking"
             ),
         ),
-        filters=FiltersYamlConfig(
-            version=1,
-            log_format=LogFormat.JSON,
-            log_example={
-                "metric_name": "test.metric",
-                "customer_id": "customer1",
-                "timestamp": 1625097600000,
-                "value": 1.0,
-            },
-            fields=[
-                JsonFieldDefinition(
-                    key="metric_name", field_type=FieldType.STRING, path="metric_name"
-                ),
-                JsonFieldDefinition(
-                    key="customer_id", field_type=FieldType.STRING, path="customer_id"
-                ),
-                JsonFieldDefinition(
-                    key="timestamp", field_type=FieldType.INTEGER, path="timestamp"
-                ),
-                JsonFieldDefinition(
-                    key="value", field_type=FieldType.FLOAT, path="value"
-                ),
-            ],
-        ),
+        filters=None,
     )
 
     # Configure CloudWatch logs input
@@ -562,27 +534,20 @@ def test_metrics_logs_inputs_dataflow(
     sample_log_entries = [LogEntry.from_cloudwatch_log(log) for log in sample_logs]
     mock_fetch_logs.return_value = iter(sample_log_entries)
 
-    endpoint = "https://your_ingestion_url.com/v1/ingest"
-    httpx_mock.add_response(
-        method="POST",
-        url=f"{endpoint}/your_ingestion_id/your_ingestion_key",
-        status_code=200,
-    )
-
     output_config = RatedOutputConfig(
         ingestion_id="your_ingestion_id",
         ingestion_key="your_ingestion_key",
-        ingestion_url=endpoint,
+        ingestion_url=mocked_ingestion_endpoint,
     )
 
     mock_input_metrics = TestingSource([TimeRange(start_time=1, end_time=2)])
     mock_input_logs = TestingSource([TimeRange(start_time=1, end_time=2)])
 
     filter_manager_logs = FilterManager(
-        config.inputs[0].filters, "cloudwatch_integration_prefix"
+        config.inputs[0].filters, "cloudwatch_integration_prefix", InputTypes.LOGS
     )
     filter_manager_metrics = FilterManager(
-        config.inputs[1].filters, "datadog_integration_prefix"
+        config.inputs[1].filters, "datadog_integration_prefix", InputTypes.METRICS
     )
 
     inputs = [

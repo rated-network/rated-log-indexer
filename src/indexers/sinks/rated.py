@@ -129,7 +129,6 @@ class _HTTPSinkPartition(StatelessSinkPartition):
 
         for item in items:
             event_data = {
-                "integration_id": item.integration_prefix,
                 "customer_id": item.customer_id,
                 "timestamp": item.event_timestamp.strftime("%Y-%m-%dT%H:%M:%SZ"),
                 "key": self.config.ingestion_key,
@@ -146,7 +145,6 @@ class _HTTPSinkPartition(StatelessSinkPartition):
             event_data["values"] = {  # type: ignore
                 k: v for k, v in prefixed_values.items() if k not in reserved_keys
             }
-            event_data.pop("integration_id", None)
 
             body.append(event_data)
 
@@ -175,8 +173,8 @@ class _HTTPSinkPartition(StatelessSinkPartition):
 
         full_url = f"{self.config.ingestion_url}/{ingestion_id}/{ingestion_key}"
 
-        redacted_id = ingestion_id[:5] + "*" * (len(ingestion_id) - 5)
-        redacted_key = ingestion_key[:5] + "*" * (len(ingestion_key) - 5)
+        redacted_id = ingestion_id[:5] + "*" * max(0, len(ingestion_id) - 5)
+        redacted_key = ingestion_key[:5] + "*" * max(0, len(ingestion_key) - 5)
         redacted_url = f"{self.config.ingestion_url}/{redacted_id}/{redacted_key}"
 
         return full_url, redacted_url
@@ -228,31 +226,28 @@ class _HTTPSinkPartition(StatelessSinkPartition):
         """
         Send a batch of events to the HTTP endpoint.
         """
-        integration_prefix = items[0].integration_prefix
         try:
             body = self._compose_body(items)
             headers = self._compose_headers()
             url, redacted_url = self._compose_url()
-            logger.info(f"Sending batch of {len(items)} items to {redacted_url}")
             response = self.client.post(url, json=body, headers=headers)
             response.raise_for_status()
-            logger.debug(
-                f"Worker {self.worker_index} successfully sent batch to HTTP endpoint",
+            logger.info(
+                "Successfully sent batch to slaOS",
                 batch_size=len(items),
-                integration_prefix=integration_prefix,
-                url=redacted_url,
+                redacted_url=redacted_url,
+                worker_index=self.worker_index,
             )
+
         except httpx.HTTPError as e:
             logger.error(
                 f"Worker {self.worker_index} HTTP error sending batch: {e}",
-                integration_prefix=integration_prefix,
                 batch_size=len(items),
             )
             raise
         except Exception as e:
             logger.error(
                 f"Worker {self.worker_index} error sending batch: {e}",
-                integration_prefix=integration_prefix,
                 batch_size=len(items),
             )
             raise
