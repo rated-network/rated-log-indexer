@@ -2,6 +2,8 @@ import json
 from typing import Any, List, Dict, Iterator
 import time
 from collections import deque
+
+import stamina
 import structlog
 import httpx
 from bytewax.outputs import DynamicSink, StatelessSinkPartition
@@ -49,7 +51,7 @@ class SlaOsApiBody:
             return {}
 
         if integration_prefix and integration_prefix.strip():
-            return {f"{integration_prefix.strip()}.{k}": v for k, v in values.items()}
+            return {f"{integration_prefix.strip()}_{k}": v for k, v in values.items()}
         return values
 
     @classmethod
@@ -107,7 +109,6 @@ class _HTTPSinkPartition(StatelessSinkPartition):
         self.flush_in_progress: StrictBool = False
         logger.debug(
             f"Worker {self.worker_index} initialized",
-            integration_prefix=self.integration_prefix,
             http_endpoint=self.config.ingestion_url,
         )
 
@@ -122,21 +123,25 @@ class _HTTPSinkPartition(StatelessSinkPartition):
             List[dict]: The HTTP request body in dictionary format.
         """
         body = []
-        reserved_keys = ["customer_id", "timestamp", "key"]
-
         for item in items:
-            event_data: dict = {
+            event_data = {
+                "integration_id": item.integration_prefix,
                 "customer_id": item.customer_id,
                 "timestamp": item.event_timestamp.strftime("%Y-%m-%dT%H:%M:%SZ"),
                 "key": self.config.ingestion_key,
             }
-
             prefixed_values: dict = SlaOsApiBody.parse_and_prefix_values(
-                item.values, self.integration_prefix
+                item.values, item.integration_prefix
             )
-            event_data["values"] = {
+            reserved_keys = [
+                f"{item.integration_prefix}_customer_id",
+                f"{item.integration_prefix}_timestamp",
+                f"{item.integration_prefix}_key",
+            ]
+            event_data["values"] = {  # type: ignore
                 k: v for k, v in prefixed_values.items() if k not in reserved_keys
             }
+            event_data.pop("integration_id", None)
 
             body.append(event_data)
 
@@ -204,10 +209,12 @@ class _HTTPSinkPartition(StatelessSinkPartition):
             self.batch = []
             self.last_flush_time = time.time()
 
+    @stamina.retry(on=Exception, attempts=5)
     def send_batch(self, items: List[FilteredEvent]) -> None:
         """
         Send a batch of events to the HTTP endpoint.
         """
+        integration_prefix = items[0].integration_prefix
         try:
             body = self._compose_body(items)
             headers = self._compose_headers()
@@ -218,19 +225,19 @@ class _HTTPSinkPartition(StatelessSinkPartition):
             logger.debug(
                 f"Worker {self.worker_index} successfully sent batch to HTTP endpoint",
                 batch_size=len(items),
-                integration_prefix=self.integration_prefix,
+                integration_prefix=integration_prefix,
             )
         except httpx.HTTPError as e:
             logger.error(
                 f"Worker {self.worker_index} HTTP error sending batch: {e}",
-                integration_prefix=self.integration_prefix,
+                integration_prefix=integration_prefix,
                 batch_size=len(items),
             )
             raise
         except Exception as e:
             logger.error(
                 f"Worker {self.worker_index} error sending batch: {e}",
-                integration_prefix=self.integration_prefix,
+                integration_prefix=integration_prefix,
                 batch_size=len(items),
             )
             raise
@@ -243,7 +250,6 @@ class _HTTPSinkPartition(StatelessSinkPartition):
         self.client.close()
         logger.info(
             f"Worker {self.worker_index} HTTP sink closed",
-            integration_prefix=self.integration_prefix,
         )
 
 

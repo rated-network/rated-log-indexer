@@ -100,6 +100,7 @@ class MetricEntry:
 
 @dataclass
 class FilteredEvent:
+    integration_prefix: str
     event_id: str
     event_timestamp: datetime
     customer_id: str

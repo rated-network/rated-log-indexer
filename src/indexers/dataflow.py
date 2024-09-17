@@ -88,7 +88,9 @@ def parse_config(
             else input_config.datadog
         )
         fetcher = fetch_logs if input_config.type == InputTypes.LOGS else fetch_metrics
-        filter_manager = FilterManager(input_config.filters)
+        filter_manager = FilterManager(
+            input_config.filters, input_config.integration_prefix
+        )
 
         filter_logic = (
             filter_manager.parse_and_filter_log

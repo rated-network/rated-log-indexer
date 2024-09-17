@@ -12,9 +12,10 @@ logger = structlog.getLogger(__name__)
 
 
 class FilterManager:
-    def __init__(self, filter_config: FiltersYamlConfig):
+    def __init__(self, filter_config: FiltersYamlConfig, integration_prefix: str):
         self.log_parser = LogParser()
         self.filter_config = filter_config
+        self.integration_prefix = integration_prefix
         self._initialize_parser()
 
     def _initialize_parser(self):
@@ -47,6 +48,7 @@ class FilterManager:
                 return None
 
             return FilteredEvent(
+                integration_prefix=self.integration_prefix,
                 event_id=log_entry.log_id,
                 event_timestamp=log_entry.event_timestamp,
                 customer_id=parsed_log.parsed_fields.get(
@@ -59,14 +61,15 @@ class FilterManager:
             logger.error("Parsing error", log_content=log_entry.content, error=str(e))
             return None
 
-    @staticmethod
-    def parse_and_filter_metrics(metrics_entry: MetricEntry) -> Optional[FilteredEvent]:
+    def parse_and_filter_metrics(
+        self, metrics_entry: MetricEntry
+    ) -> Optional[FilteredEvent]:
         """
         Returns parsed fields dictionary from the metrics entry if the metrics entry is successfully parsed and filtered.
         """
-        print("FILTER_METRICS", metrics_entry)
         try:
             return FilteredEvent(
+                integration_prefix=self.integration_prefix,
                 event_id=f"{metrics_entry.metric_name}_{metrics_entry.customer_id}_{to_milliseconds(metrics_entry.event_timestamp)}",
                 event_timestamp=metrics_entry.event_timestamp,
                 customer_id=metrics_entry.customer_id,
