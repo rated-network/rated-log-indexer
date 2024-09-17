@@ -125,7 +125,6 @@ class _HTTPSinkPartition(StatelessSinkPartition):
             List[dict]: The HTTP request body in dictionary format.
         """
         body = []
-        reserved_keys = ["customer_id", "timestamp", "key", "idempotency_key"]
 
         for item in items:
             event_data = {
@@ -141,6 +140,7 @@ class _HTTPSinkPartition(StatelessSinkPartition):
                 f"{item.integration_prefix}_customer_id",
                 f"{item.integration_prefix}_timestamp",
                 f"{item.integration_prefix}_key",
+                f"{item.integration_prefix}_idempotency_key",
             ]
             event_data["values"] = {  # type: ignore
                 k: v for k, v in prefixed_values.items() if k not in reserved_keys
@@ -226,6 +226,7 @@ class _HTTPSinkPartition(StatelessSinkPartition):
         """
         Send a batch of events to the HTTP endpoint.
         """
+        integration_prefixes = {item.integration_prefix for item in items}
         try:
             body = self._compose_body(items)
             headers = self._compose_headers()
@@ -237,17 +238,20 @@ class _HTTPSinkPartition(StatelessSinkPartition):
                 batch_size=len(items),
                 redacted_url=redacted_url,
                 worker_index=self.worker_index,
+                integration_prefix=integration_prefixes,
             )
 
         except httpx.HTTPError as e:
             logger.error(
                 f"Worker {self.worker_index} HTTP error sending batch: {e}",
+                integration_prefix=integration_prefixes,
                 batch_size=len(items),
             )
             raise
         except Exception as e:
             logger.error(
                 f"Worker {self.worker_index} error sending batch: {e}",
+                integration_prefix=integration_prefixes,
                 batch_size=len(items),
             )
             raise

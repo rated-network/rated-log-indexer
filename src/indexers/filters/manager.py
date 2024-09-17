@@ -1,3 +1,4 @@
+import re
 from typing import Optional
 
 import structlog
@@ -51,6 +52,13 @@ class FilterManager:
 
         self.log_parser.add_pattern(pattern_payload.model_dump())
 
+    @staticmethod
+    def _replace_special_characters(input_string: str) -> str:
+        """
+        Replace all special characters in the input string with underscores.
+        """
+        return re.sub(r"\W", "_", input_string, flags=re.UNICODE)
+
     def parse_and_filter_log(self, log_entry: LogEntry) -> Optional[FilteredEvent]:
         """
         Returns parsed fields dictionary from the log entry if the log entry is successfully parsed and filtered.
@@ -63,6 +71,11 @@ class FilterManager:
             if not fields or not fields.get("customer_id"):
                 return None
 
+            validated_fields = {
+                self._replace_special_characters(k): v
+                for k, v in parsed_log.parsed_fields.items()
+            }
+
             return FilteredEvent(
                 integration_prefix=self.integration_prefix,
                 idempotency_key=log_entry.log_id,
@@ -70,7 +83,7 @@ class FilterManager:
                 customer_id=parsed_log.parsed_fields.get(
                     "customer_id", "MISSING_CUSTOMER_ID"
                 ),
-                values=parsed_log.parsed_fields,
+                values=validated_fields,
             )
 
         except Exception as e:
@@ -95,7 +108,11 @@ class FilterManager:
                 idempotency_key=idempotency_key,
                 event_timestamp=metrics_entry.event_timestamp,
                 customer_id=metrics_entry.customer_id,
-                values={metrics_entry.metric_name: metrics_entry.value},
+                values={
+                    self._replace_special_characters(
+                        metrics_entry.metric_name
+                    ): metrics_entry.value
+                },
             )
 
         except Exception as e:
