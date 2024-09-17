@@ -87,7 +87,7 @@ def test_logs_dataflow(
             ),
         ],
     )
-    filter_manager = FilterManager(filter_config)
+    filter_manager = FilterManager(filter_config, "integration_prefix")
 
     mock_input = TestingSource([TimeRange(start_time=1, end_time=2)])
     inputs = [
@@ -193,7 +193,9 @@ def test_metrics_dataflow(
     )
 
     mock_input = TestingSource([TimeRange(start_time=1, end_time=2)])
-    filter_manager = FilterManager(config.inputs[0].filters)
+    filter_manager = FilterManager(
+        config.inputs[0].filters, "datadog_integration_prefix"
+    )
     inputs = [
         (
             IntegrationTypes.DATADOG,
@@ -334,7 +336,9 @@ def test_multiple_inputs_dataflow(
     mock_input_logs1 = TestingSource([TimeRange(start_time=1, end_time=2)])
     mock_input_logs2 = TestingSource([TimeRange(start_time=1, end_time=2)])
 
-    filter_manager = FilterManager(config.inputs[0].filters)
+    filter_manager = FilterManager(
+        config.inputs[0].filters, "cloudwatch_integration_prefix"
+    )
 
     inputs = [
         (
@@ -353,7 +357,7 @@ def test_multiple_inputs_dataflow(
             mock_input_logs2,
             mock_fetch_logs,
             filter_manager.parse_and_filter_log,
-            "datadog_integration_prefix",
+            "cloudwatch_integration_prefix",
         ),
     ]
 
@@ -401,6 +405,7 @@ def test_metrics_logs_inputs_dataflow(
     datadog_config = InputYamlConfig(
         type=InputTypes.METRICS,
         integration=IntegrationTypes.DATADOG,
+        integration_prefix="datadog_integration_prefix",
         datadog=DatadogConfig(
             api_key="your_api_key",
             app_key="your_app_key",
@@ -454,6 +459,7 @@ def test_metrics_logs_inputs_dataflow(
     cloudwatch_config = InputYamlConfig(
         type=InputTypes.LOGS,
         integration=IntegrationTypes.CLOUDWATCH,
+        integration_prefix="cloudwatch_integration_prefix",
         cloudwatch=CloudwatchConfig(
             aws_access_key_id="fake_access_key",
             aws_secret_access_key="fake_secret_key",
@@ -572,8 +578,12 @@ def test_metrics_logs_inputs_dataflow(
     mock_input_metrics = TestingSource([TimeRange(start_time=1, end_time=2)])
     mock_input_logs = TestingSource([TimeRange(start_time=1, end_time=2)])
 
-    filter_manager_logs = FilterManager(config.inputs[0].filters)
-    filter_manager_metrics = FilterManager(config.inputs[1].filters)
+    filter_manager_logs = FilterManager(
+        config.inputs[0].filters, "cloudwatch_integration_prefix"
+    )
+    filter_manager_metrics = FilterManager(
+        config.inputs[1].filters, "datadog_integration_prefix"
+    )
 
     inputs = [
         (
@@ -617,8 +627,14 @@ def test_metrics_logs_inputs_dataflow(
     request = requests[0]
     body = json.loads(request.content)
 
-    metric_count = sum(1 for item in body if "test.metric" in item["values"])
-    log_count = sum(1 for item in body if "log_level" in item["values"])
+    metric_count = sum(
+        1 for item in body if "datadog_integration_prefix_test.metric" in item["values"]
+    )
+    log_count = sum(
+        1
+        for item in body
+        if "cloudwatch_integration_prefix_log_level" in item["values"]
+    )
     assert metric_count == 4, f"Expected 4 metrics, got {metric_count}"
     assert log_count == 2, f"Expected 2 logs, got {log_count}"
 

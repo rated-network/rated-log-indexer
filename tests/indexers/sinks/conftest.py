@@ -21,6 +21,7 @@ def mocked_time():
 def test_events():
     logs = [
         {
+            "integration_prefix": "",
             "customer_id": "customer_id_one",
             "event_id": "mock_log_one",
             "event_timestamp": datetime.fromtimestamp(
@@ -29,6 +30,7 @@ def test_events():
             "values": {"example_key": "example_value_one"},
         },
         {
+            "integration_prefix": "",
             "customer_id": "customer_id_two",
             "event_id": "mock_log_two",
             "event_timestamp": datetime.fromtimestamp(
@@ -37,6 +39,7 @@ def test_events():
             "values": {"example_key": "example_value_two"},
         },
         {
+            "integration_prefix": "",
             "customer_id": "customer_id_three",
             "event_id": "mock_log_three",
             "event_timestamp": datetime.fromtimestamp(
