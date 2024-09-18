@@ -1,11 +1,13 @@
+import structlog
 import hashlib
 import json
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Dict, Any, Union
 
-from src.utils.logger import logger
 from src.utils.time_conversion import from_milliseconds
+
+logger = structlog.get_logger(__name__)
 
 
 def generate_idempotency_key(
