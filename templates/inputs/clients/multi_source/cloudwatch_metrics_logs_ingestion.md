@@ -5,12 +5,14 @@ This guide explains how to configure the slaOS indexer for ingesting both logs a
 ## Configuration Example
 
 ```yaml
-input:
-  - type: cloudwatch
+inputs:
+  - integration: cloudwatch
+    integration_prefix: cloudwatch_metrics
+    type: metrics
     cloudwatch:
       region: us-east-1
-      aws_access_key_id: AKIA6M4GOBIXNPPDFXHS
-      aws_secret_access_key: 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
+      aws_access_key_id: AKIAXXXXXX
+      aws_secret_access_key: XXXX+XXXX/XXXX/XXXX
       logs_config:
         log_group_name: /aws/lambda/my-function
         filter_pattern: "{ $.level = \"ERROR\" }"
@@ -23,8 +25,11 @@ input:
         metric_queries:
           - - name: FunctionName
               value: my-lambda-function
+    offset: <offset_config>
 
-  - type: datadog
+  - integration: datadog
+    integration_prefix: datadog_metrics
+    type: metrics
     datadog:
       site: datadoghq.com
       api_key: your_datadog_api_key
@@ -40,6 +45,7 @@ input:
         metric_tag_data:
           - customer_value: my-lambda-function
             tag_string: "function_name:my-lambda-function,environment:prod"
+    offset: <offset_config>
 ```
 
 ## Usage Notes

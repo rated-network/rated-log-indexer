@@ -5,15 +5,19 @@ This guide explains how to configure the slaOS indexer for basic log ingestion f
 ## Configuration Example
 
 ```yaml
-input:
-  type: datadog
-  datadog:
-    site: datadoghq.com
-    api_key: your_datadog_api_key
-    app_key: your_datadog_app_key
-    logs_config:
-      indexes: ["main", "prod"]
-      query: "service:my-app status:error"
+inputs:
+  - integration: datadog
+    integration_prefix: datadog_logs
+    type: logs
+    datadog:
+      site: datadoghq.com
+      api_key: your_datadog_api_key
+      app_key: your_datadog_app_key
+      logs_config:
+        indexes: ["main", "prod"]
+        query: "service:my-app status:error"
+    filters: <filter_config>
+    offset: <offset_config>
 ```
 
 ## Field Explanations

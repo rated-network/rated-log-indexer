@@ -5,23 +5,26 @@ This guide explains how to configure the slaOS indexer for metrics ingestion fro
 ## Configuration Example
 
 ```yaml
-input:
-  type: cloudwatch
-  cloudwatch:
-    region: us-east-1
-    aws_access_key_id: AKIA6M4GOBIXNPPDFXHS
-    aws_secret_access_key: LxAAkt22atEKjn98i+AGLqQf/O/GLme3zp9YboBc
-    metrics_config:
-      namespace: AWS/Lambda
-      metric_name: Invocations
-      period: 300
-      statistic: Average
-      customer_identifier: FunctionName
-      metric_queries:
-        - - name: FunctionName
-            value: my-lambda-function
-        - - name: FunctionName
-            value: another-lambda-function
+inputs:
+  - integration: cloudwatch
+    integration_prefix: cloudwatch_metrics
+    type: metrics
+    cloudwatch:
+      region: us-east-1
+      aws_access_key_id: AKIAXXXXXX
+      aws_secret_access_key: XXXX+XXXX/XXXX/XXXX
+      metrics_config:
+        namespace: AWS/Lambda
+        metric_name: Invocations
+        period: 300
+        statistic: Average
+        customer_identifier: FunctionName
+        metric_queries:
+          - - name: FunctionName
+              value: my-lambda-function
+          - - name: FunctionName
+              value: another-lambda-function
+    offset: <offset_config>
 ```
 
 ## Field Explanations
