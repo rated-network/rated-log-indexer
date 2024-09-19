@@ -1,13 +1,15 @@
 from datetime import datetime, timezone, timedelta
 from typing import Optional, List, Any
 
+import structlog
 from bytewax.inputs import StatefulSourcePartition, FixedPartitionedSource
 from pydantic import BaseModel, PositiveInt, StrictStr
 
 from src.config.manager import ConfigurationManager
 from src.indexers.offset_tracker.factory import get_offset_tracker
-from src.utils.logger import logger
 from src.utils.time_conversion import from_milliseconds, to_milliseconds
+
+logger = structlog.get_logger(__name__)
 
 DAY_INTERVAL = 86_400_000
 

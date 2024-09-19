@@ -26,7 +26,6 @@ from datadog_api_client.v2.model.logs_query_filter import LogsQueryFilter
 from datadog_api_client.v2.model.logs_sort import LogsSort
 from pydantic import PositiveInt
 
-from src.config.manager import ConfigurationManager
 from src.config.models.inputs.datadog import DatadogConfig
 from datadog_api_client import ApiClient, Configuration
 from datadog_api_client.v2.api.logs_api import LogsApi
@@ -38,7 +37,7 @@ SORT_METHOD = LogsSort.TIMESTAMP_ASCENDING
 DATADOG_EPOCH_LIMIT = 20_000
 
 
-logger = structlog.get_logger("datadog_client")
+logger = structlog.get_logger(__name__)
 
 
 class DatadogClientError(Exception):
@@ -72,8 +71,9 @@ class DatadogClient:
         logs_config = self.config.logs_config
 
         if not logs_config:
-            logger.error("Datadog logs configuration is missing.", exc_info=True)
-            raise
+            msg = "Datadog logs configuration is missing."
+            logger.error(msg)
+            raise DatadogClientError(msg)
 
         filter_query = LogsQueryFilter(
             indexes=logs_config.indexes,
@@ -120,15 +120,16 @@ class DatadogClient:
                 if not cursor:
                     break
             except Exception as e:
-                logger.error(f"Failed to query logs: {e}")
-                raise e
+                msg = "Failed to query logs"
+                logger.error(msg, exc_info=True)
+                raise DatadogClientError(msg) from e
 
     def _parse_metrics_response(self, response: Dict[str, Any]) -> List[Dict[str, Any]]:
         metrics_config = self.config.metrics_config
 
         if not metrics_config:
             msg = "Datadog metrics configuration is missing."
-            logger.error(msg, exc_info=True)
+            logger.error(msg)
             raise DatadogClientError(msg)
 
         data = response.get("data", {}).get("attributes", {})
@@ -142,14 +143,14 @@ class DatadogClient:
             try:
                 value_list = v.__dict__["_data_store"]["value"]
                 metrics_data.append(list(zip(timestamps, value_list)))
-            except Exception as e:
-                msg = f"Failed to parse metrics response: {e}"
+            except Exception:
+                msg = "Failed to parse metrics response"
                 logger.error(msg, exc_info=True)
                 raise DatadogClientError(msg)
 
         if not metrics_config.metric_queries:
             msg = f"Datadog metrics queries missing for {metrics_config.metric_name}"
-            logger.error(msg, exc_info=True)
+            logger.error(msg)
             raise DatadogClientError(msg)
 
         metrics_values = [
@@ -176,7 +177,7 @@ class DatadogClient:
 
         if not metrics_config or not metrics_config.metric_queries:
             msg = "Datadog metrics configuration or queries are missing."
-            logger.error(msg, exc_info=True)
+            logger.error(msg)
             raise DatadogClientError(msg)
 
         queries = []
@@ -206,9 +207,6 @@ class DatadogClient:
         try:
             response = self.metrics_api.query_timeseries_data(request).to_dict()
             data = self._parse_metrics_response(response)
-
-            logger.info(data)
-
             flattened_data = [
                 {
                     "metric_name": d["metric_name"],
@@ -233,14 +231,6 @@ class DatadogClient:
 
             yield from flattened_data
         except Exception as e:
-            logger.error(f"Failed to query metrics: {e}")
-            raise e
-
-
-def get_datadog_client():
-    try:
-        config = ConfigurationManager.load_config().inputs.datadog
-    except Exception as e:
-        logger.error(f"Failed to load Cloudwatch configuration for client: {e}")
-        raise e
-    return DatadogClient(config)
+            msg = "Failed to query Datadog metrics"
+            logger.error(msg, exc_info=True)
+            raise DatadogClientError(msg) from e

@@ -10,7 +10,7 @@ from src.config.models.inputs.datadog import (
     DatadogLogsConfig,
     DatadogMetricsConfig,
 )
-from src.clients.datadog import DatadogClient, DatadogConfig
+from src.clients.datadog import DatadogClient, DatadogConfig, DatadogClientError
 
 
 class MockDatadogConfig(DatadogConfig):
@@ -105,7 +105,7 @@ def test_query_logs_pagination(mock_logs_api):
 
 @patch("src.clients.datadog.LogsApi", autospec=True)
 def test_query_logs_handles_exceptions(mock_logs_api):
-    mock_logs_api.return_value.list_logs.side_effect = Exception("Test exception")
+    mock_logs_api.return_value.list_logs.side_effect = Exception()
 
     config = MockDatadogConfig()
     datadog_client = DatadogClient(config)
@@ -113,7 +113,7 @@ def test_query_logs_handles_exceptions(mock_logs_api):
     start_time = 1722597616000  # 2024-08-02T11:20:16
     end_time = 1722598276000  # 2024-08-02T11:31:16
 
-    with pytest.raises(Exception, match="Test exception"):
+    with pytest.raises(DatadogClientError, match="Failed to query logs"):
         list(datadog_client.query_logs(start_time, end_time))
 
     assert mock_logs_api.return_value.list_logs.call_count == 1

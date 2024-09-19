@@ -1,5 +1,6 @@
 from typing import Callable, Iterator, Union, List, Tuple
 
+import structlog
 from bytewax.dataflow import Dataflow, Stream
 import bytewax.operators as op
 from bytewax.inputs import FixedPartitionedSource
@@ -19,7 +20,8 @@ from src.config.models.output import OutputTypes
 from src.indexers.sinks.console import build_console_sink
 from src.indexers.sinks.rated import build_http_sink
 from src.indexers.sources.rated import RatedSource, TimeRange
-from src.utils.logger import logger
+
+logger = structlog.get_logger(__name__)
 
 
 client_manager = ClientManager()
@@ -166,20 +168,16 @@ def build_dataflow(
 
         def create_fetcher(f, client, integration):
             def wrapped_fetcher(x):
-                logger.debug(f"Fetching data for {integration}: {x}")
                 result = f(x, client, integration)
-                logger.debug(f"Fetched data: {result}")
                 return result
 
             return wrapped_fetcher
 
         def create_filter(f, prefix):
             def wrapped_filter(x):
-                logger.debug(f"Filtering data: {x}")
                 result = f(x)
                 if result:
                     result.integration_prefix = prefix
-                logger.debug(f"Filtered result: {result}")
                 return result
 
             return wrapped_filter

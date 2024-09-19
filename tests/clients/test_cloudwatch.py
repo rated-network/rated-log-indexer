@@ -123,7 +123,7 @@ def test_query_logs_handles_exceptions(mock_client):
     start_time = PositiveInt(1625097600000)  # example start time in milliseconds
     end_time = PositiveInt(1625184000000)  # example end time in milliseconds
 
-    with pytest.raises(Exception, match="Test exception"):
+    with pytest.raises(Exception, match="Failed to query logs for test-log-group"):
         list(cloudwatch_client.query_logs(start_time, end_time))
 
 

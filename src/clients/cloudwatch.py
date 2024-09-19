@@ -8,14 +8,13 @@ from botocore.client import BaseClient  # type: ignore
 from botocore.config import Config  # type: ignore
 from pydantic import PositiveInt
 
-from src.config.manager import ConfigurationManager
 from src.config.models.inputs.cloudwatch import (
     CloudwatchConfig,
     CloudwatchMetricsConfig,
 )
 from src.utils.time_conversion import from_milliseconds
 
-logger = structlog.get_logger("cloudwatch_client")
+logger = structlog.get_logger(__name__)
 
 
 class CloudwatchClientError(Exception):
@@ -130,9 +129,9 @@ class CloudwatchClient:
                 if not next_token:
                     break
             except Exception as e:
-                msg = f"Failed to query logs: {e}"
+                msg = f"Failed to query logs for {logs_config.log_group_name}"
                 logger.error(msg, exc_info=True)
-                raise CloudwatchClientError(msg)
+                raise CloudwatchClientError(msg) from e
 
     def _parse_metrics_queries(
         self, metrics_config: CloudwatchMetricsConfig
@@ -237,7 +236,7 @@ class CloudwatchClient:
 
                         if len(timestamps) != len(values):
                             msg = f"Timestamps and values are not of the same length for {metrics_config.metric_name}"
-                            logger.error(msg, exc_info=True)
+                            logger.error(msg)
                             raise CloudwatchClientError(msg)
 
                         metric_values = zip(timestamps, values)
@@ -270,16 +269,6 @@ class CloudwatchClient:
                         break
 
                 except Exception as e:
-                    msg = f"Failed to query metrics: {e}"
+                    msg = "Failed to query Cloudwatch metrics"
                     logger.error(msg, exc_info=True)
-                    raise CloudwatchClientError(msg)
-
-
-def get_cloudwatch_client():
-    try:
-        config = ConfigurationManager.load_config().inputs.cloudwatch
-    except Exception as e:
-        msg = f"Failed to load Cloudwatch configuration for client: {e}"
-        logger.error(msg, exc_info=True)
-        raise CloudwatchClientError(msg)
-    return CloudwatchClient(config)
+                    raise CloudwatchClientError(msg) from e
