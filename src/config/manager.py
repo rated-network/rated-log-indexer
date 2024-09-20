@@ -1,10 +1,8 @@
 import sys
 from typing import List
-
 import structlog
 import yaml
 import os
-
 from src.config.secrets.factory import SecretManagerFactory
 from src.config.models.inputs.input import InputYamlConfig
 from src.config.models.output import OutputYamlConfig
@@ -50,25 +48,49 @@ class ConfigurationManager:
         if not os.path.exists(config_path):
             raise FileNotFoundError(f"Configuration file not found: {config_path}")
 
-        with open(config_path, "r") as file:
-            config_data = yaml.safe_load(file)
-
         try:
+            with open(config_path, "r") as file:
+                config_data = yaml.safe_load(file)
+
             config = RatedIndexerYamlConfig(**config_data)
+
             if config.secrets.use_secrets_manager:
-                secret_manager_handler = SecretManagerFactory.create(config)
-                secret_manager_handler.resolve_secrets(config)
+                ConfigurationManager._resolve_secrets(config)
 
             return config
 
         except ValidationError as e:
-            logger.error("Configuration validation failed with the following errors:")
+            logger.error("Configuration validation failed:", exc_info=e)
             for error in e.errors():
                 logger.error(f"Field: {error['loc']} - Error: {error['msg']}")
             sys.exit(1)
+        except yaml.YAMLError as e:
+            logger.error("Error parsing YAML configuration:", exc_info=e)
+            sys.exit(1)
         except Exception as e:
-            logger.exception(
-                "An unexpected error occurred while loading the configuration.",
+            logger.error(
+                "An unexpected error occurred while loading the configuration:",
                 exc_info=e,
             )
-            raise
+            sys.exit(1)
+
+    @staticmethod
+    def _resolve_secrets(config: RatedIndexerYamlConfig):
+        try:
+            secret_manager_handler = SecretManagerFactory.create(config)
+            secret_manager_handler.resolve_secrets(config)
+        except KeyError as e:
+            logger.error(f"Error resolving secret: {str(e)}")
+            logger.info(
+                "Please check your secret key and ensure it exists in the secret manager."
+            )
+            sys.exit(1)
+        except ValueError as e:
+            logger.error(f"Invalid secret format: {str(e)}")
+            logger.info("Please check your secret format in the configuration file.")
+            sys.exit(1)
+        except Exception as e:
+            logger.error(
+                "An unexpected error occurred while resolving secrets:", exc_info=e
+            )
+            sys.exit(1)

@@ -53,7 +53,9 @@ secrets:
 
 ## Secret Resolution
 
-Reference secrets in your configuration using:
+Reference secrets in your configuration using one of the following formats:
+
+### For String Secrets
 
 ```
 secret:secrets_manager_id
@@ -68,8 +70,32 @@ input:
     app_key: secret:datadog-app-key_secrets_manager_id
 ```
 
-The indexer resolves these references using the configured AWS Secrets Manager.
+### For Dictionary Secrets
 
+```
+secret|key_name:secrets_manager_id
+```
+
+Example:
+```yaml
+input:
+  type: datadog
+  datadog:
+    credentials:
+      api_key: secret|api_key:datadog-credentials_secrets_manager_id
+      app_key: secret|app_key:datadog-credentials_secrets_manager_id
+```
+
+In this case, `datadog-credentials_secrets_manager_id` should contain a JSON object like:
+
+```json
+{
+  "api_key": "your_api_key_here",
+  "app_key": "your_app_key_here"
+}
+```
+
+The indexer resolves these references using the configured AWS Secrets Manager, fetching either the entire string or the specified key from a dictionary secret.
 
 ## Without Secrets Manager
 
