@@ -5,16 +5,20 @@ This guide explains how to configure the slaOS indexer for basic log ingestion f
 ## Configuration Example
 
 ```yaml
-input:
-  type: cloudwatch
-  cloudwatch:
-    region: us-east-1
-    aws_access_key_id: AKIAXXXXXX
-    aws_secret_access_key: XXXX+XXXX/XXXX/XXXX
-    logs_config:
-      log_group_name: /aws/apprunner/api/XXXXX/application
-      # log_stream_name: XXXXX
-      filter_pattern: "{ $.level = \"ERROR\" }"
+inputs:
+  - integration: cloudwatch
+    integration_prefix: cloudwatch_logs
+    type: logs
+    cloudwatch:
+      region: us-east-1
+      aws_access_key_id: AKIAXXXXXX
+      aws_secret_access_key: XXXX+XXXX/XXXX/XXXX
+      logs_config:
+        log_group_name: /aws/apprunner/api/XXXXX/application
+        # log_stream_name: XXXXX
+        filter_pattern: "{ $.level = \"ERROR\" }"
+    filters: <filter_config>
+    offset: <offset_config>
 ```
 
 ## Field Explanations
