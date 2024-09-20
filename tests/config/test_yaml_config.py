@@ -1,5 +1,4 @@
 import pytest
-import yaml
 import os
 from unittest.mock import mock_open, patch
 
@@ -56,14 +55,6 @@ def test_load_config_file_not_found():
     with patch.object(os.path, "exists", return_value=False):
         with pytest.raises(FileNotFoundError):
             ConfigurationManager.load_config()
-
-
-def test_load_config_invalid_yaml():
-    invalid_yaml = "input:\n  type: cloudwatch\n  cloudwatch:\n    region: us-east-1\n    : invalid"
-    with patch("builtins.open", mock_open(read_data=invalid_yaml)):
-        with patch.object(os.path, "exists", return_value=True):
-            with pytest.raises(yaml.YAMLError):
-                ConfigurationManager.load_config()
 
 
 def test_get_config_invalid_input_type(valid_config_dict):

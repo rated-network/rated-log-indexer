@@ -1,3 +1,4 @@
+import json
 import pytest
 from unittest.mock import patch
 
@@ -24,6 +25,7 @@ def valid_config_with_secrets(valid_config_dict):
         {
             "integration": "datadog",
             "type": "logs",
+            "integration_prefix": "secret:integration_prefix_secret",
             "datadog": {
                 "api_key": "secret:datadog_api_key_in_secrets_manager",
                 "app_key": "app_key_value_raw",
@@ -73,6 +75,9 @@ def mock_aws_secrets_manager():
             "datadog_api_key_in_secrets_manager": "resolved_datadog_api_key",
             "ingestion_key_key_in_secrets_manager": "resolved_ingestion_key",
             "app_key": "resolved_datadog_app_key",
+            "dict_secret": json.dumps({"key1": "value1", "key2": "value2"}),
+            "string_secret": "just_a_string",
+            "integration_prefix_secret": "resolved_integration_prefix",
         }
         mock_client.return_value.get_secret_value.side_effect = lambda SecretId: {
             "SecretString": mock_secrets[SecretId]
@@ -92,14 +97,15 @@ def test_get_config_with_secrets(valid_config_with_secrets, mock_aws_secrets_man
         assert isinstance(result_config, RatedIndexerYamlConfig)
         assert result_config.secrets.use_secrets_manager is True
         assert result_config.secrets.provider == SecretProvider.AWS
-        assert result_config.inputs[0]["integration"] == IntegrationTypes.DATADOG
-        assert result_config.inputs[0]["datadog"]["app_key"] == "app_key_value_raw"
+        assert result_config.inputs[0].integration == IntegrationTypes.DATADOG
+        assert result_config.inputs[0].datadog.app_key == "app_key_value_raw"
+        assert result_config.inputs[0].datadog.api_key == "resolved_datadog_api_key"
         assert (
-            result_config.inputs[0]["datadog"]["api_key"] == "resolved_datadog_api_key"
+            result_config.inputs[0].integration_prefix == "resolved_integration_prefix"
         )
         assert result_config.output.rated.ingestion_key == "resolved_ingestion_key"
 
-        assert not result_config.inputs[0]["datadog"]["api_key"].startswith("secret:")
+        assert not result_config.inputs[0].datadog.api_key.startswith("secret:")
         assert not result_config.output.rated.ingestion_key.startswith("secret:")
 
 
@@ -113,5 +119,51 @@ def test_secret_manager_resolve_secrets(
     secret_manager = AwsSecretManager(config.secrets.aws)
     secret_manager.resolve_secrets(config)
 
-    assert config.inputs[0]["datadog"]["app_key"] == "resolved_datadog_app_key"
-    assert config.inputs[0]["datadog"]["api_key"] != secret_name
+    assert config.inputs[0].datadog.app_key == "resolved_datadog_app_key"
+    assert config.inputs[0].datadog.api_key != secret_name
+
+
+def test_secret_manager_resolve_dictionary_secret(
+    valid_config_with_secrets, mock_aws_secrets_manager
+):
+    secret_name = "secret|key1:dict_secret"
+    valid_config_with_secrets["inputs"][0]["datadog"]["app_key"] = secret_name
+
+    config = RatedIndexerYamlConfig(**valid_config_with_secrets)
+    secret_manager = AwsSecretManager(config.secrets.aws)
+    secret_manager.resolve_secrets(config)
+
+    assert config.inputs[0].datadog.api_key != secret_name
+    assert config.inputs[0].datadog.app_key == "value1"
+
+
+def test_secret_manager_resolve_string_as_dictionary_raises_error(
+    valid_config_with_secrets, mock_aws_secrets_manager
+):
+    secret_name = "secret|key1:string_secret"
+    valid_config_with_secrets["inputs"][0]["datadog"]["app_key"] = secret_name
+
+    config = RatedIndexerYamlConfig(**valid_config_with_secrets)
+    secret_manager = AwsSecretManager(config.secrets.aws)
+
+    with pytest.raises(
+        ValueError,
+        match="Secret string_secret for app_key does not resolve to a dictionary",
+    ):
+        secret_manager.resolve_secrets(config)
+
+
+def test_secret_manager_resolve_nonexistent_key_in_dictionary_raises_error(
+    valid_config_with_secrets, mock_aws_secrets_manager
+):
+    secret_name = "secret|nonexistent_key:dict_secret"
+    valid_config_with_secrets["inputs"][0]["datadog"]["app_key"] = secret_name
+
+    config = RatedIndexerYamlConfig(**valid_config_with_secrets)
+    secret_manager = AwsSecretManager(config.secrets.aws)
+
+    with pytest.raises(
+        KeyError,
+        match="Key 'nonexistent_key' not found in secret dict_secret for app_key. Available keys: key1, key2",
+    ):
+        secret_manager.resolve_secrets(config)
