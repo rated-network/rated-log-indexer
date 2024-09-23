@@ -18,7 +18,7 @@ class SecretManager(ABC):
 
     def _resolve_secrets_in_object(self, obj):
         if isinstance(obj, BaseModel):
-            for field in obj.__fields__:
+            for field in obj.model_fields:
                 value = getattr(obj, field)
                 resolved_value = self._resolve_value(value, field)
                 setattr(obj, field, resolved_value)
