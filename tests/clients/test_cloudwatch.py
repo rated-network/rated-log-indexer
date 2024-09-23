@@ -1,8 +1,14 @@
 import pytest
 from unittest.mock import MagicMock, patch
+
+from botocore.exceptions import ClientError  # type: ignore
 from pydantic import PositiveInt
 
-from src.clients.cloudwatch import CloudwatchClient
+from src.clients.cloudwatch import (
+    CloudwatchClient,
+    CloudwatchInputs,
+    CloudwatchClientError,
+)
 from src.config.models.inputs.cloudwatch import (
     CloudwatchConfig,
     CloudwatchLogsConfig,
@@ -214,3 +220,27 @@ def test_parse_metrics_queries():
 
     assert customer_id_map == expected_customer_id_map
     assert query_chunks == expected_query_chunks
+
+
+@patch("src.clients.cloudwatch.client")
+def test_retry_on_error(mock_client):
+    client = CloudwatchClient(MockConfig())
+
+    client.logs_client.filter_log_events.side_effect = ClientError(
+        {"Error": {"Code": "ThrottlingException"}}, "filter_log_events"
+    )
+
+    params = {
+        "logGroupName": "test-group",
+        "startTime": 1625097600000,
+        "endTime": 1625184000000,
+        "limit": 10,
+    }
+
+    with pytest.raises(
+        CloudwatchClientError,
+        match="Rate limit hit, retrying",
+    ):
+        client.make_api_call(CloudwatchInputs.LOGS, params)
+
+    assert client.logs_client.filter_log_events.call_count == 10

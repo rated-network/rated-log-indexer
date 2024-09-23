@@ -1,6 +1,9 @@
+import time
+
 import pytest
 from unittest.mock import MagicMock, patch
 
+from datadog_api_client.exceptions import ApiException
 from datadog_api_client.v2.model.timeseries_response_values import (
     TimeseriesResponseValues,
 )
@@ -36,7 +39,7 @@ class MockDatadogConfig(DatadogConfig):
         )
 
 
-class MockLogEntry:
+class MockResponse:
     def __init__(self, data):
         self.data = data
 
@@ -49,10 +52,16 @@ def mock_logs_api():
     return MagicMock()
 
 
+@pytest.fixture(autouse=True)
+def mock_sleep(monkeypatch):
+    monkeypatch.setattr(time, "sleep", lambda x: None)
+
+
 @patch("src.clients.datadog.LogsApi", autospec=True)
 def test_query_logs_initial_query_success(mock_logs_api):
+
     mock_response = {
-        "data": [MockLogEntry({"message": "log1"}), MockLogEntry({"message": "log2"})],
+        "data": [MockResponse({"message": "log1"}), MockResponse({"message": "log2"})],
         "meta": {"status": "done"},
     }
     mock_logs_api.return_value.list_logs.return_value = mock_response
@@ -73,11 +82,11 @@ def test_query_logs_initial_query_success(mock_logs_api):
 @patch("src.clients.datadog.LogsApi", autospec=True)
 def test_query_logs_pagination(mock_logs_api):
     mock_response1 = {
-        "data": [MockLogEntry({"message": "log1"}), MockLogEntry({"message": "log2"})],
+        "data": [MockResponse({"message": "log1"}), MockResponse({"message": "log2"})],
         "meta": {"page": {"after": "cursor1"}},
     }
     mock_response2 = {
-        "data": [MockLogEntry({"message": "log3"}), MockLogEntry({"message": "log4"})],
+        "data": [MockResponse({"message": "log3"}), MockResponse({"message": "log4"})],
         "meta": {"status": "done"},
     }
     mock_logs_api.return_value.list_logs.side_effect = [
@@ -116,7 +125,7 @@ def test_query_logs_handles_exceptions(mock_logs_api):
     with pytest.raises(DatadogClientError, match="Failed to query logs"):
         list(datadog_client.query_logs(start_time, end_time))
 
-    assert mock_logs_api.return_value.list_logs.call_count == 1
+    assert mock_logs_api.return_value.list_logs.call_count == 10
 
 
 @patch("src.clients.datadog.LogsApi", autospec=True)
@@ -270,3 +279,50 @@ def test_parse_metrics_response():
     assert (
         metrics == expected_metrics
     ), f"Expected {expected_metrics}, but got {metrics}"
+
+
+def test_retry_on_429_error():
+    mock_config = MockDatadogConfig()
+    datadog_client = DatadogClient(mock_config)
+
+    # Create a real ApiException
+    error_429 = ApiException(status=429, reason="Too Many Requests")
+    error_429.headers = {"x-ratelimit-reset": "3"}
+
+    mock_response = MockResponse(
+        data={
+            "attributes": {
+                "series": [{"query_index": 0}, {"query_index": 1}],
+                "times": [1625097600000, 1625097660000, 1625097720000],
+                "values": [
+                    TimeseriesResponseValues(
+                        [1.0, 2.0, None]
+                    ),  # Corresponds to query_index 0
+                    TimeseriesResponseValues(
+                        [None, None, 3.0]
+                    ),  # Corresponds to query_index 1
+                ],
+            }
+        }
+    )
+
+    # Mock the metrics_api.query_timeseries_data method
+    with patch.object(
+        datadog_client.metrics_api,
+        "query_timeseries_data",
+        side_effect=[error_429, error_429, mock_response],
+    ) as mock_query:
+        # Call query_metrics and exhaust the iterator
+        list(datadog_client.query_metrics(1000, 2000))
+
+    # Check that the API was called the expected number of times (including retries)
+    assert mock_query.call_count == 3
+
+    # Test with continuous failures to ensure DatadogClientError is raised
+    with patch.object(
+        datadog_client.metrics_api, "query_timeseries_data", side_effect=error_429
+    ):
+        with pytest.raises(DatadogClientError) as excinfo:
+            list(datadog_client.query_metrics(1000, 2000))
+
+    assert "Failed to query Datadog metrics" in str(excinfo.value)
