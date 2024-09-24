@@ -1,5 +1,6 @@
 import structlog
 
+from src.config.models.sentry import initialize_sentry
 from src.config.manager import ConfigurationManager
 from src.indexers.dataflow import dataflow
 
@@ -12,6 +13,9 @@ def main():
         logger.warning(
             "Secrets manager is disabled, its use is encouraged in production environments"
         )
+
+    if config.sentry:
+        initialize_sentry(config.sentry)
 
     flow = dataflow(config)
     return flow

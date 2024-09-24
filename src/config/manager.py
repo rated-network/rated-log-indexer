@@ -1,8 +1,10 @@
 import sys
-from typing import List
+from typing import List, Optional
 import structlog
 import yaml
 import os
+
+from src.config.models.sentry import SentryYamlConfig
 from src.config.secrets.factory import SecretManagerFactory
 from src.config.models.inputs.input import InputYamlConfig
 from src.config.models.output import OutputYamlConfig
@@ -16,6 +18,7 @@ class RatedIndexerYamlConfig(BaseModel):
     inputs: List[InputYamlConfig]
     output: OutputYamlConfig
     secrets: SecretsYamlConfig
+    sentry: Optional[SentryYamlConfig] = None
 
     @model_validator(mode="after")
     def check_integration_prefixes(cls, values):
