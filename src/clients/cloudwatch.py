@@ -138,12 +138,6 @@ class CloudwatchClient:
                     start_time=start_time,
                     end_time=end_time,
                     log_group_name=logs_config.log_group_name,
-                    start_time_str=from_milliseconds(start_time).strftime(
-                        "%Y-%m-%d %H:%M:%S"
-                    ),
-                    end_time_str=from_milliseconds(end_time).strftime(
-                        "%Y-%m-%d %H:%M:%S"
-                    ),
                 )
 
                 yield from logs
@@ -156,13 +150,15 @@ class CloudwatchClient:
                 logger.error(msg, exc_info=True)
                 raise CloudwatchClientError(msg) from e
 
-            logger.info(
-                f"Fetched logs {total_logs} from Cloudwatch",
-                start_time=start_time,
-                end_time=end_time,
-                log_group_name=logs_config.log_group_name,
-                page_count=page_count,
-            )
+        logger.info(
+            f"Fetched logs {total_logs} from Cloudwatch",
+            page_count=page_count,
+            start_time=start_time,
+            end_time=end_time,
+            log_group_name=logs_config.log_group_name,
+            start_time_str=from_milliseconds(start_time).strftime("%Y-%m-%d %H:%M:%S"),
+            end_time_str=from_milliseconds(end_time).strftime("%Y-%m-%d %H:%M:%S"),
+        )
 
     def _parse_metrics_queries(
         self, metrics_config: CloudwatchMetricsConfig

@@ -173,8 +173,8 @@ class _HTTPSinkPartition(StatelessSinkPartition):
 
         full_url = f"{self.config.ingestion_url}/{ingestion_id}/{ingestion_key}"
 
-        redacted_id = ingestion_id[:5] + "*" * max(0, len(ingestion_id) - 5)
-        redacted_key = ingestion_key[:5] + "*" * max(0, len(ingestion_key) - 5)
+        redacted_id = ingestion_id[:5] + "*" * 3
+        redacted_key = ingestion_key[:5] + "*" * 3
         redacted_url = f"{self.config.ingestion_url}/{redacted_id}/{redacted_key}"
 
         return full_url, redacted_url
