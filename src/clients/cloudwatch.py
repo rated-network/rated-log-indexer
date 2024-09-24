@@ -6,6 +6,7 @@ import structlog
 from boto3 import client  # type: ignore
 from botocore.client import BaseClient  # type: ignore
 from botocore.config import Config  # type: ignore
+from botocore.exceptions import ClientError  # type: ignore
 from pydantic import PositiveInt
 
 from src.config.models.inputs.cloudwatch import (
@@ -35,6 +36,11 @@ class QueryLimit(Enum):
     METRICS = 100_001  # 100_000 is the maximum number of data points we are querying in a single request
 
 
+class CloudwatchInputs(str, Enum):
+    LOGS = "logs"
+    METRICS = "metrics"
+
+
 class CloudwatchClient:
     def __init__(self, config: CloudwatchConfig, limit: Optional[PositiveInt] = None):
         self.config = config
@@ -56,31 +62,45 @@ class CloudwatchClient:
             aws_secret_access_key=self.config.aws_secret_access_key,
         )
 
-    @stamina.retry(on=Exception, attempts=5)
+    @stamina.retry(on=CloudwatchClientError)
+    def make_api_call(
+        self, call_type: CloudwatchInputs, params: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        try:
+            if call_type == CloudwatchInputs.LOGS:
+                response = self.logs_client.filter_log_events(**params)
+                return response
+            elif call_type == CloudwatchInputs.METRICS:
+                response = self.metrics_client.get_metric_data(**params)
+                return response
+            else:
+                msg = f"Unsupported call type: {call_type}"
+                logger.error(msg, exc_info=True)
+                raise CloudwatchClientError(msg)
+        except ClientError as e:
+            error_code = e.response.get("Error", {}).get("Code", "Unknown")
+            if error_code == "ThrottlingException":
+                msg = "Rate limit hit, retrying"
+                logger.warning(msg, exc_info=True)
+                raise CloudwatchClientError(msg) from e
+            else:
+                logger.error(
+                    f"Client error querying CloudWatch: {error_code}",
+                    exc_info=True,
+                )
+                raise CloudwatchClientError(
+                    f"Failed to query CloudWatch with ClientError: {error_code}"
+                ) from e
+        except Exception as e:
+            msg = "Unexpected error querying CloudWatch"
+            logger.error(msg, exc_info=True)
+            raise CloudwatchClientError(msg) from e
+
     def query_logs(
         self,
         start_time: PositiveInt,
         end_time: PositiveInt,
     ) -> Iterator[Dict[str, Any]]:
-        """
-        Fetch logs from the specified AWS CloudWatch log group within the given time range.
-
-        This method retrieves logs between the `start_time` and `end_time` and returns them
-        as an iterator of dictionaries. It automatically retries up to 5 times if any
-        exceptions occur during the log fetching process.
-
-        Args:
-            start_time (PositiveInt): The start time in milliseconds since the Unix epoch
-                                      from which to begin fetching logs.
-            end_time (PositiveInt): The end time in milliseconds since the Unix epoch
-                                    up to which logs should be fetched.
-
-        Returns:
-            Iterator[Dict[str, Any]]: An iterator that yields log entries as dictionaries.
-
-        Raises:
-            Exception: If the log fetching operation fails after 5 attempts.
-        """
         logs_config = self.config.logs_config
 
         if not logs_config:
@@ -88,7 +108,6 @@ class CloudwatchClient:
             logger.error(msg, exc_info=True)
             raise CloudwatchClientError(msg)
 
-        filter_pattern = logs_config.filter_pattern
         params = {
             "logGroupName": logs_config.log_group_name,
             "startTime": start_time,
@@ -96,8 +115,8 @@ class CloudwatchClient:
             "limit": self.logs_query_limit,
         }
 
-        if filter_pattern:
-            params["filterPattern"] = filter_pattern
+        if logs_config.filter_pattern:
+            params["filterPattern"] = logs_config.filter_pattern
 
         next_token = None
 
@@ -106,7 +125,7 @@ class CloudwatchClient:
                 params["nextToken"] = next_token
 
             try:
-                events_batch = self.logs_client.filter_log_events(**params)
+                events_batch = self.make_api_call(CloudwatchInputs.LOGS, params)
                 logs = events_batch.get("events", [])
                 logger.info(
                     f"Fetched {len(logs)} logs from Cloudwatch",
@@ -128,7 +147,7 @@ class CloudwatchClient:
                 next_token = events_batch.get("nextToken")
                 if not next_token:
                     break
-            except Exception as e:
+            except CloudwatchClientError as e:
                 msg = f"Failed to query logs for {logs_config.log_group_name}"
                 logger.error(msg, exc_info=True)
                 raise CloudwatchClientError(msg) from e
@@ -178,22 +197,9 @@ class CloudwatchClient:
         ]
         return customer_id_map, chunks
 
-    @stamina.retry(on=Exception, attempts=5)
     def query_metrics(
         self, start_time: PositiveInt, end_time: PositiveInt
     ) -> Iterator[Dict[str, Any]]:
-        """
-        Fetch metrics from the specified AWS CloudWatch namespace.
-
-        This method retrieves metrics and returns them as an iterator of dictionaries.
-        It automatically retries up to 5 times if any exceptions occur during the metrics fetching process.
-
-        Returns:
-            Iterator[Dict[str, Any]]: An iterator that yields metric entries as dictionaries.
-
-        Raises:
-            Exception: If the metrics fetching operation fails after 5 attempts.
-        """
         metrics_config = self.config.metrics_config
 
         if not metrics_config:
@@ -218,7 +224,7 @@ class CloudwatchClient:
                     params["NextToken"] = next_token
 
                 try:
-                    response = self.metrics_client.get_metric_data(**params)
+                    response = self.make_api_call(CloudwatchInputs.METRICS, params)
                     metric_data_results = response.get("MetricDataResults", {})
 
                     if not metric_data_results:
@@ -268,7 +274,7 @@ class CloudwatchClient:
                     if not response.get("NextToken"):
                         break
 
-                except Exception as e:
+                except CloudwatchClientError as e:
                     msg = "Failed to query Cloudwatch metrics"
                     logger.error(msg, exc_info=True)
                     raise CloudwatchClientError(msg) from e

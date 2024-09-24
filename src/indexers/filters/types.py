@@ -70,7 +70,15 @@ class LogEntry:
         else:
             is_json = False
 
-        event_timestamp = log_attributes.get("timestamp")
+        try:
+            # The timestamp object returned from Datadog is in timezone.localtime, but they index in UTC
+            event_timestamp = log_attributes.get("timestamp").replace(
+                tzinfo=timezone.utc
+            )
+        except AttributeError as e:
+            msg = f"Failed to parse Datadog log timestamp. Received: {log_attributes.get('timestamp')}"
+            logger.error(msg, exc_info=True)
+            raise ValueError(msg) from e
 
         return cls(
             log_id=log["id"],

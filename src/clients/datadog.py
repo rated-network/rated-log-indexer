@@ -1,8 +1,12 @@
-from typing import Any, Iterator, Dict, List
+from enum import Enum
+from time import sleep
+from typing import Any, Iterator, Dict, List, Union
 
 import stamina
 import structlog
+from datadog_api_client.exceptions import ApiException
 from datadog_api_client.v2.api.metrics_api import MetricsApi
+from datadog_api_client.v2.model.logs_list_response import LogsListResponse
 from datadog_api_client.v2.model.metrics_data_source import MetricsDataSource
 from datadog_api_client.v2.model.metrics_timeseries_query import MetricsTimeseriesQuery
 from datadog_api_client.v2.model.timeseries_formula_query_request import (
@@ -40,6 +44,11 @@ DATADOG_EPOCH_LIMIT = 20_000
 logger = structlog.get_logger(__name__)
 
 
+class DatadogInputs(str, Enum):
+    LOGS = "logs"
+    METRICS = "metrics"
+
+
 class DatadogClientError(Exception):
     """Custom exception for Cloudwatch Client errors."""
 
@@ -64,7 +73,51 @@ class DatadogClient:
 
         self.datadog_config.unstable_operations["query_timeseries_data"] = True
 
-    @stamina.retry(on=Exception, attempts=5)
+    @stamina.retry(on=DatadogClientError)
+    def make_api_call(
+        self,
+        call_type: DatadogInputs,
+        request_body: Union[LogsListRequest, TimeseriesFormulaQueryRequest],
+    ) -> Union[LogsListResponse, Dict[str, Any]]:
+        try:
+            if call_type == DatadogInputs.LOGS and isinstance(
+                request_body, LogsListRequest
+            ):
+                response = self.logs_api.list_logs(body=request_body)
+                return response
+            elif call_type == DatadogInputs.METRICS and isinstance(
+                request_body, TimeseriesFormulaQueryRequest
+            ):
+                response = self.metrics_api.query_timeseries_data(
+                    request_body
+                ).to_dict()
+                return response
+            else:
+                msg = f"Unsupported call type: {call_type.value}"
+                logger.error(msg, exc_info=True)
+                raise DatadogClientError(msg)
+        except ApiException as e:
+            if e.status == 429:
+                retry_after = int(e.headers.get("x-ratelimit-reset", 5))
+                logger.warning(
+                    f"Rate limit hit, retrying after {retry_after} seconds.",
+                    exc_info=True,
+                )
+                sleep(retry_after)
+                raise DatadogClientError("Rate limit hit, retrying") from e
+            else:
+                logger.error(
+                    f"Unexpected ApiException querying Datadog for {call_type.value}",
+                    exc_info=True,
+                )
+                raise DatadogClientError(f"Failed to query {call_type.value}") from e
+        except Exception as e:
+            logger.error(
+                f"Unexpected error querying Datadog for {call_type.value}",
+                exc_info=True,
+            )
+            raise DatadogClientError(f"Failed to query {call_type.value}") from e
+
     def query_logs(
         self, start_time: PositiveInt, end_time: PositiveInt
     ) -> Iterator[Dict[str, Any]]:
@@ -97,7 +150,8 @@ class DatadogClient:
             )
 
             try:
-                response = self.logs_api.list_logs(body=request_body)
+                response = self.make_api_call(DatadogInputs.LOGS, request_body)
+
                 logs = response.get("data", [])
                 data = [log.to_dict() for log in logs]
 
@@ -119,6 +173,7 @@ class DatadogClient:
                 cursor = response["meta"].get("page", {}).get("after")
                 if not cursor:
                     break
+
             except Exception as e:
                 msg = "Failed to query logs"
                 logger.error(msg, exc_info=True)
@@ -169,7 +224,6 @@ class DatadogClient:
 
         return metrics_values
 
-    @stamina.retry(on=Exception, attempts=5)
     def query_metrics(
         self, start_time: PositiveInt, end_time: PositiveInt
     ) -> Iterator[Dict[str, Any]]:
@@ -205,8 +259,15 @@ class DatadogClient:
         )
 
         try:
-            response = self.metrics_api.query_timeseries_data(request).to_dict()
-            data = self._parse_metrics_response(response)
+            response = self.make_api_call(DatadogInputs.METRICS, request)
+
+            if isinstance(response, dict):
+                data = self._parse_metrics_response(response)
+            else:
+                msg = "Failed to parse metrics response"
+                logger.error(msg, exc_info=True)
+                raise DatadogClientError(msg)
+
             flattened_data = [
                 {
                     "metric_name": d["metric_name"],
