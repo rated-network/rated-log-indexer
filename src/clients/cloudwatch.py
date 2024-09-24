@@ -133,7 +133,7 @@ class CloudwatchClient:
                 total_logs += batch_count
                 page_count += 1
 
-                logger.info(
+                logger.debug(
                     f"Fetched page {page_count}: {batch_count} logs (Total: {total_logs})",
                     start_time=start_time,
                     end_time=end_time,
@@ -150,14 +150,19 @@ class CloudwatchClient:
 
                 next_token = events_batch.get("nextToken")
                 if not next_token:
-                    logger.info(
-                        f"No more pages. Total logs fetched: {total_logs} in {page_count} pages"
-                    )
                     break
             except CloudwatchClientError as e:
                 msg = f"Failed to query logs for {logs_config.log_group_name} on page {page_count}"
                 logger.error(msg, exc_info=True)
                 raise CloudwatchClientError(msg) from e
+
+            logger.info(
+                f"Fetched logs {total_logs} from Cloudwatch",
+                start_time=start_time,
+                end_time=end_time,
+                log_group_name=logs_config.log_group_name,
+                page_count=page_count,
+            )
 
     def _parse_metrics_queries(
         self, metrics_config: CloudwatchMetricsConfig
