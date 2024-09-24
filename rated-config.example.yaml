@@ -1,69 +1,49 @@
-input:
+# This is an example configuration file. Check /templates for more examples.
+
+inputs:
   - integration: cloudwatch
+    integration_prefix: rated_example
     type: logs
     cloudwatch:
       region: us-east-1
-      aws_access_key_id: your_aws_access_key_id
-      aws_secret_access_key: your_aws_secret_access_key
+      aws_access_key_id: AKIAXXXXXXX
+      aws_secret_access_key: X/XXXX+XXXXX
       logs_config:
-        log_group_name: your_log_group_name
-        log_stream_name: your_log_stream_name
-        filter_pattern: your_filter_pattern
+        log_group_name: "/aws/apprunner/prod-rated-api/xxxxxxxxx/application"
+        filter_pattern: '{ ($.event = "request_finished" || $.event = "request_error") }'
     filters:
       version: 1
-      log_format: "json_dict"
-      log_example: '{"timestamp": "2022-01-01T00:00:00.000Z", "message": "Hello, Rated from CloudWatch!"}'
+      log_format: json_dict
+      log_example: { }
       fields:
-        - key: "timestamp"
+        - key: "status_code"
+          field_type: "integer"
+          path: "status_code"
+        - key: "customer_id"
           field_type: "string"
-          path: "timestamp"
-        - key: "message"
+          path: "org.id"
+        - key: "path"
           field_type: "string"
-          path: "message"
-
-#  Example Datadog integration configuration - uncomment and comment out Cloudwatch to use.
-
-#  - integration: datadog
-#    type: logs
-#    datadog:
-#      site: datadoghq.eu
-#      api_key: your_datadog_api_key
-#      app_key: your_datadog_app_key
-#      logs_config:
-#        indexes: [ "main" ]
-#        query: "*"
-#    filters:
-#      version: 1
-#      log_format: "json_dict"
-#      log_example: '{"timestamp": "2022-01-01T00:00:00.000Z", "message": "Hello, Rated from Datadog!"}'
-#      fields:
-#        - key: "timestamp"
-#          field_type: "string"
-#          path: "timestamp"
-#        - key: "message"
-#          field_type: "string"
-#          path: "message"
+          path: "request_route_name"
+        - key: "took"
+          field_type: "float"
+          path: "took"
+    offset:
+      type: redis
+      override_start_from: true
+      start_from: 1724803200000
+      start_from_type: bigint
+      redis:
+        host: redis
+        port: 6379
+        db: 0
 
 output:
-  type: rated
+  type: "rated"
   rated:
-    ingestion_id: your_ingestion_id
-    ingestion_key: your_ingestion_key
-    ingestion_url: https://rated.live/v1/ingest
-
-
-offset:
-  type: postgres
-  override_start_from: true
-  start_from: 123456789
-  start_from_type: bigint
-  postgres:
-    table_name: offset_tracking
-    host: localhost
-    port: 5432
-    database: postgres
-    user: postgres
-    password: postgres
+      ingestion_id: "xxxxx-xx-xx-xx-xxxxx"
+      ingestion_key: "xxxxx"
+      ingestion_url: "https://rated.co/v1/ingest"
 
 secrets:
   use_secrets_manager: false
