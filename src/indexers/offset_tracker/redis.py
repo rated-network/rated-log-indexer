@@ -34,6 +34,7 @@ class RedisOffsetTracker(OffsetTracker):
 
         if self.config.override_start_from and not self._override_applied:
             self._override_applied = True
+            self.update_offset(self.config.start_from)
             value = self.client.get(self.key)
 
         if value is None:

@@ -46,11 +46,19 @@ def mock_client():
 
 @patch("src.clients.cloudwatch.client")
 def test_query_logs_initial_query_success(mock_client):
-    mock_response = {
-        "events": [{"message": "log1"}, {"message": "log2"}],
-        "nextToken": "next-token",
-    }
-    mock_client.return_value.filter_log_events.return_value = mock_response
+    # Mock responses for two pages of results
+    mock_responses = [
+        {
+            "events": [{"message": "log1"}, {"message": "log2"}],
+            "nextToken": "next-token",
+        },
+        {
+            "events": [],
+            "nextToken": None,  # No more pages after this
+        },
+    ]
+
+    mock_client.return_value.filter_log_events = MagicMock(side_effect=mock_responses)
 
     config = MockConfig()
     cloudwatch_client = CloudwatchClient(config)
@@ -60,14 +68,28 @@ def test_query_logs_initial_query_success(mock_client):
 
     logs = list(cloudwatch_client.query_logs(start_time, end_time))
 
+    # Assert that we got all logs from the first page
     assert len(logs) == 2
     assert logs == [{"message": "log1"}, {"message": "log2"}]
-    mock_client.return_value.filter_log_events.assert_called_once_with(
+    assert mock_client.return_value.filter_log_events.call_count == 2
+
+    # Check the parameters of the first call
+    mock_client.return_value.filter_log_events.assert_any_call(
         logGroupName=config.logs_config.log_group_name,
         startTime=start_time,
         endTime=end_time,
         filterPattern=config.logs_config.filter_pattern,
         limit=cloudwatch_client.logs_query_limit,
+    )
+
+    # Check the parameters of the second call (should include the nextToken)
+    mock_client.return_value.filter_log_events.assert_any_call(
+        logGroupName=config.logs_config.log_group_name,
+        startTime=start_time,
+        endTime=end_time,
+        filterPattern=config.logs_config.filter_pattern,
+        limit=cloudwatch_client.logs_query_limit,
+        nextToken="next-token",
     )
 
 

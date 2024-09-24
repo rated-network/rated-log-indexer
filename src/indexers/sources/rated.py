@@ -11,7 +11,7 @@ from src.utils.time_conversion import from_milliseconds, to_milliseconds
 
 logger = structlog.get_logger(__name__)
 
-DAY_INTERVAL = 86_400_000
+FETCH_INTERVAL_SECONDS = 3_600  # 1 hour
 
 
 class TimeRange(BaseModel):
@@ -71,8 +71,8 @@ class RatedPartition(StatefulSourcePartition[TimeRange, None]):
         timestamp = datetime.now(timezone.utc)
         head = to_milliseconds(timestamp)
 
-        if head - self.current_time > DAY_INTERVAL:
-            head = self.current_time + DAY_INTERVAL
+        if head - self.current_time > FETCH_INTERVAL_SECONDS:
+            head = self.current_time + FETCH_INTERVAL_SECONDS
         if head <= self.current_time:
             return None
 
@@ -88,7 +88,7 @@ class RatedPartition(StatefulSourcePartition[TimeRange, None]):
         if not time_range:
             self._next_awake += timedelta(seconds=24.0)
             return []
-        if time_range.start_time - time_range.end_time == DAY_INTERVAL:
+        if time_range.start_time - time_range.end_time == FETCH_INTERVAL_SECONDS:
             self._next_awake += timedelta(seconds=2.0)
         else:
             self._next_awake += timedelta(seconds=24.0)

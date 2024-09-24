@@ -119,6 +119,8 @@ class CloudwatchClient:
             params["filterPattern"] = logs_config.filter_pattern
 
         next_token = None
+        total_logs = 0
+        page_count = 0
 
         while True:
             if next_token:
@@ -127,8 +129,12 @@ class CloudwatchClient:
             try:
                 events_batch = self.make_api_call(CloudwatchInputs.LOGS, params)
                 logs = events_batch.get("events", [])
-                logger.info(
-                    f"Fetched {len(logs)} logs from Cloudwatch",
+                batch_count = len(logs)
+                total_logs += batch_count
+                page_count += 1
+
+                logger.debug(
+                    f"Fetched page {page_count}: {batch_count} logs (Total: {total_logs})",
                     start_time=start_time,
                     end_time=end_time,
                     log_group_name=logs_config.log_group_name,
@@ -139,18 +145,24 @@ class CloudwatchClient:
                         "%Y-%m-%d %H:%M:%S"
                     ),
                 )
-                yield from logs
 
-                if len(logs) < self.logs_query_limit:
-                    break
+                yield from logs
 
                 next_token = events_batch.get("nextToken")
                 if not next_token:
                     break
             except CloudwatchClientError as e:
-                msg = f"Failed to query logs for {logs_config.log_group_name}"
+                msg = f"Failed to query logs for {logs_config.log_group_name} on page {page_count}"
                 logger.error(msg, exc_info=True)
                 raise CloudwatchClientError(msg) from e
+
+            logger.info(
+                f"Fetched logs {total_logs} from Cloudwatch",
+                start_time=start_time,
+                end_time=end_time,
+                log_group_name=logs_config.log_group_name,
+                page_count=page_count,
+            )
 
     def _parse_metrics_queries(
         self, metrics_config: CloudwatchMetricsConfig
