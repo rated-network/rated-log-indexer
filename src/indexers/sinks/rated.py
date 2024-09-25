@@ -1,5 +1,5 @@
 import json
-from typing import Any, List, Dict, Iterator, Tuple
+from typing import Any, List, Dict, Iterator, Tuple, Optional
 import time
 from collections import deque
 
@@ -9,7 +9,8 @@ import httpx
 from bytewax.outputs import DynamicSink, StatelessSinkPartition
 from dataclasses import dataclass
 
-from pydantic import StrictInt, StrictBool, StrictFloat
+from pydantic import StrictInt, StrictBool, StrictFloat, StrictStr
+
 
 from src.config.models.output import RatedOutputConfig
 from src.indexers.filters.types import FilteredEvent
@@ -27,7 +28,7 @@ class SlaOsApiBody:
 
     @classmethod
     def parse_and_prefix_values(
-        cls, raw_values: Any, integration_prefix: str
+        cls, raw_values: Any, integration_prefix: Optional[StrictStr]
     ) -> Dict[str, Any]:
         """
         Parse the values if they're a string, and add the integration prefix to the keys.
@@ -130,17 +131,25 @@ class _HTTPSinkPartition(StatelessSinkPartition):
             event_data = {
                 "customer_id": item.customer_id,
                 "timestamp": item.event_timestamp.strftime("%Y-%m-%dT%H:%M:%SZ"),
-                "key": self.config.ingestion_key,
+                "key": (
+                    item.integration_prefix
+                    if item.integration_prefix
+                    else "a_valid_source"
+                ),
                 "idempotency_key": item.idempotency_key,
             }
             prefixed_values: dict = SlaOsApiBody.parse_and_prefix_values(
-                item.values, item.integration_prefix
+                item.values, None
             )
             reserved_keys = [
                 f"{item.integration_prefix}_customer_id",
                 f"{item.integration_prefix}_timestamp",
                 f"{item.integration_prefix}_key",
                 f"{item.integration_prefix}_idempotency_key",
+                "key",
+                "customer_id",
+                "timestamp",
+                "idempotency_key",
             ]
             event_data["values"] = {  # type: ignore
                 k: v for k, v in prefixed_values.items() if k not in reserved_keys
@@ -242,6 +251,7 @@ class _HTTPSinkPartition(StatelessSinkPartition):
             )
 
         except httpx.HTTPError as e:
+            print(response.text)
             logger.error(
                 f"Worker {self.worker_index} HTTP error sending batch: {e}",
                 integration_prefix=integration_prefixes,

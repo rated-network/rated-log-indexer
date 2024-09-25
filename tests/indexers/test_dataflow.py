@@ -592,14 +592,8 @@ def test_metrics_logs_inputs_dataflow(
     request = requests[0]
     body = json.loads(request.content)
 
-    metric_count = sum(
-        1 for item in body if "datadog_integration_prefix_test_metric" in item["values"]
-    )
-    log_count = sum(
-        1
-        for item in body
-        if "cloudwatch_integration_prefix_log_level" in item["values"]
-    )
+    metric_count = sum(1 for item in body if "test_metric" in item["values"])
+    log_count = sum(1 for item in body if "log_level" in item["values"])
     assert metric_count == 4, f"Expected 4 metrics, got {metric_count}"
     assert log_count == 2, f"Expected 2 logs, got {log_count}"
 

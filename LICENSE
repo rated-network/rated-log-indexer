@@ -1,4 +1,4 @@
-# Rated Labs Ltd. Prosperity Public License
+# Rated Labs Ltd. License
 
 Version 1.0.0
 
@@ -30,7 +30,7 @@ https://github.com/rated-network/rated-log-indexer
 
 ### 2. Grant of License
 
-Subject to the terms and conditions of this License, Rated Labs Ltd. hereby grants You a worldwide, non-exclusive, no-charge, royalty-free license to reproduce, prepare derivative works of, publicly display, publicly perform, sublicense, and distribute the Source Code and Object Code, for non-commercial purposes only.
+Subject to the terms and conditions of this License, Rated Labs Ltd. hereby grants You a worldwide, non-exclusive, no-charge, royalty-free license to reproduce, prepare derivative works of, publicly display, publicly perform, and distribute the Source Code and Object Code, for non-commercial purposes only.
 
 ### 3. Restrictions
 
@@ -41,6 +41,8 @@ a) You may not use the Source Code or Object Code for commercial purposes.
 b) You must give any other recipients of the Source Code or Object Code a copy of this License.
 
 c) You must cause any modified files to carry prominent notices stating that You changed the files.
+
+If you remix, transform, build upon or modify the Source Code or Object Code, you must distribute your contributions under the same license as the original.
 
 ### 4. Contributions
 

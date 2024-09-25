@@ -43,7 +43,7 @@ output:
   rated:
       ingestion_id: "xxxxx-xx-xx-xx-xxxxx"
       ingestion_key: "xxxxx"
-      ingestion_url: "https://rated.co/v1/ingest"
+      ingestion_url: "https://api.rated.co/v1/ingest"
 
 secrets:
   use_secrets_manager: false
