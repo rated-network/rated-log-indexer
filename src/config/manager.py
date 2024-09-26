@@ -15,6 +15,7 @@ logger = structlog.get_logger(__name__)
 
 
 class RatedIndexerYamlConfig(BaseModel):
+
     inputs: List[InputYamlConfig]
     output: OutputYamlConfig
     secrets: SecretsYamlConfig
@@ -22,14 +23,18 @@ class RatedIndexerYamlConfig(BaseModel):
 
     @model_validator(mode="after")
     def check_integration_prefixes(cls, values):
+        if not hasattr(values, "_duplicate_warning_logged"):
+            values._duplicate_warning_logged = False
+
         integration_prefixes = [input.integration_prefix for input in values.inputs]
 
         duplicates = set(
             [x for x in integration_prefixes if integration_prefixes.count(x) > 1]
         )
-        if duplicates:
-            raise ValueError(
-                f"Duplicate integration_prefix values found: {', '.join(duplicates)}"
+        if duplicates and not values._duplicate_warning_logged:
+            values._duplicate_warning_logged = True
+            logger.warning(
+                f"Duplicate integration_prefix values found: {', '.join(duplicates)}. Please make sure this is the intended behavior. This will send data from multiple integrations to the same datastream `key`. Sleeping 10s ..."
             )
 
         for _input in values.inputs:
