@@ -34,7 +34,7 @@ class RatedIndexerYamlConfig(BaseModel):
         if duplicates and not values._duplicate_warning_logged:
             values._duplicate_warning_logged = True
             logger.warning(
-                f"Duplicate integration_prefix values found: {', '.join(duplicates)}. Please make sure this is the intended behavior. This will send data from multiple integrations to the same datastream `key`. Sleeping 10s ..."
+                f"Duplicate integration_prefix values found: {', '.join(duplicates)}. Please make sure this is the intended behavior. This will send data from multiple integrations to the same datastream `key`."
             )
 
         for _input in values.inputs:

@@ -1,3 +1,4 @@
+from collections import defaultdict
 from typing import Callable, Iterator, Union, List, Tuple
 
 import structlog
@@ -82,8 +83,17 @@ def parse_config(
     Callable[[str], DynamicSink],  # Ensure this returns a valid DynamicSink
 ]:
     inputs = []
+    integration_prefix_count: defaultdict = defaultdict(int)
+
     for input_config in config.inputs:
-        input_source = RatedSource(integration_prefix=input_config.integration_prefix)
+        integration_prefix = input_config.integration_prefix
+        config_index = integration_prefix_count[integration_prefix]
+        integration_prefix_count[integration_prefix] += 1
+
+        input_source = RatedSource(
+            integration_prefix=integration_prefix, config_index=config_index
+        )
+
         client_config = (
             input_config.cloudwatch
             if input_config.integration == IntegrationTypes.CLOUDWATCH
