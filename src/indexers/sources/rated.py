@@ -3,7 +3,7 @@ from typing import Optional, List, Any
 
 import structlog
 from bytewax.inputs import StatefulSourcePartition, FixedPartitionedSource
-from pydantic import BaseModel, PositiveInt, StrictStr
+from pydantic import BaseModel, PositiveInt, StrictStr, StrictInt
 
 from src.config.manager import ConfigurationManager
 from src.indexers.offset_tracker.factory import get_offset_tracker
@@ -20,13 +20,13 @@ class TimeRange(BaseModel):
 
 
 class RatedPartition(StatefulSourcePartition[TimeRange, None]):
-    def __init__(self, integration_prefix: StrictStr) -> None:
+    def __init__(self, integration_prefix: StrictStr, config_index: StrictInt) -> None:
         self._next_awake = datetime.now(timezone.utc)
 
         self.config = ConfigurationManager().load_config().inputs
 
         self.offset_tracker, self.config_start_from = get_offset_tracker(
-            integration_prefix
+            integration_prefix, config_index
         )
 
         self.current_time = self._get_current_offset()
@@ -107,12 +107,13 @@ class RatedSource(FixedPartitionedSource[TimeRange, None]):
     emits a safe range to fetch
     """
 
-    def __init__(self, integration_prefix: str):
+    def __init__(self, integration_prefix: str, config_index: int):
         self.integration_prefix = integration_prefix
+        self.config_index = config_index
 
     def list_parts(self):
         return ["single-part"]
 
     def build_part(self, step_id: StrictStr, for_key: StrictStr, resume_state: Any):
         assert for_key == "single-part"
-        return RatedPartition(self.integration_prefix)
+        return RatedPartition(self.integration_prefix, self.config_index)
