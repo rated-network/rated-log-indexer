@@ -90,7 +90,7 @@ We welcome contributions to the rated-log-indexer! Please read our [CONTRIBUTING
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE).
+This project is licensed under the [Rated Labs Ltd. Prosperity Public License](LICENSE.md).
 
 ## Support
 
