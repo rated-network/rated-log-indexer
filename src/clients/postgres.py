@@ -9,6 +9,7 @@ from pydantic import (
     ConfigDict,
     StrictStr,
     StrictInt,
+    PositiveInt,
 )
 from sqlalchemy import create_engine, text, inspect
 from sqlalchemy.exc import SQLAlchemyError
@@ -212,3 +213,10 @@ class PostgresClient:
             raise SQLClientError(f"Failed to query metrics: {str(e)}") from e
         finally:
             self.close()
+
+    def query_logs(
+        self, start_time: PositiveInt, end_time: PositiveInt
+    ) -> Iterator[Dict[str, Any]]:
+        raise NotImplementedError(
+            "SQL logs are not supported. Use `metrics` flag instead."
+        )
