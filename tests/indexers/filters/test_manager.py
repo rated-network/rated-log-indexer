@@ -21,7 +21,7 @@ filters = FiltersYamlConfig(
         JsonFieldDefinition(key="service", field_type=FieldType.STRING, path="service"),
         JsonFieldDefinition(key="event", field_type=FieldType.STRING, path="event"),
         JsonFieldDefinition(
-            key="customer_id", field_type=FieldType.STRING, path="user_id"
+            key="organization_id", field_type=FieldType.STRING, path="user_id"
         ),
     ],
 )

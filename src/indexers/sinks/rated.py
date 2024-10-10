@@ -20,7 +20,7 @@ logger = structlog.get_logger(__name__)
 
 @dataclass
 class SlaOsApiBody:
-    customer_id: str
+    organization_id: str
     timestamp: str
     key: str
     idempotency_key: str
@@ -72,7 +72,7 @@ class SlaOsApiBody:
             SlaOsApiBody: A new instance of SlaOsApiBody.
         """
         return cls(
-            customer_id=event.customer_id,
+            organization_id=event.organization_id,
             timestamp=event.event_timestamp.strftime("%Y-%m-%dT%H:%M:%SZ"),
             key=key,
             idempotency_key=event.idempotency_key,
@@ -129,7 +129,7 @@ class _HTTPSinkPartition(StatelessSinkPartition):
 
         for item in items:
             event_data = {
-                "customer_id": item.customer_id,
+                "organization_id": item.organization_id,
                 "timestamp": item.event_timestamp.strftime("%Y-%m-%dT%H:%M:%SZ"),
                 "key": (
                     item.integration_prefix
@@ -142,12 +142,12 @@ class _HTTPSinkPartition(StatelessSinkPartition):
                 item.values, None
             )
             reserved_keys = [
-                f"{item.integration_prefix}_customer_id",
+                f"{item.integration_prefix}_organization_id",
                 f"{item.integration_prefix}_timestamp",
                 f"{item.integration_prefix}_key",
                 f"{item.integration_prefix}_idempotency_key",
                 "key",
-                "customer_id",
+                "organization_id",
                 "timestamp",
                 "idempotency_key",
             ]

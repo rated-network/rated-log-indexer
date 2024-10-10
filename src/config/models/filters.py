@@ -36,8 +36,8 @@ class FiltersYamlConfig(BaseModel):
         if not v:
             raise ValueError("Filter fields cannot be empty")
 
-        if "customer_id" not in [field.key for field in v]:
-            raise ValueError("customer_id field is required in filters")
+        if "organization_id" not in [field.key for field in v]:
+            raise ValueError("organization_id field is required in filters")
 
         if log_format == RatedParserLogFormat.RAW_TEXT:
             for field in v:

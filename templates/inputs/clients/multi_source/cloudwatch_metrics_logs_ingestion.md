@@ -21,7 +21,7 @@ inputs:
         metric_name: Invocations
         period: 300
         statistic: Average
-        customer_identifier: FunctionName
+        organization_identifier: FunctionName
         metric_queries:
           - - name: FunctionName
               value: my-lambda-function
@@ -41,7 +41,7 @@ inputs:
         metric_name: aws.lambda.duration
         interval: 300
         statistic: avg
-        customer_identifier: function_name
+        organization_identifier: function_name
         metric_tag_data:
           - customer_value: my-lambda-function
             tag_string: "function_name:my-lambda-function,environment:prod"

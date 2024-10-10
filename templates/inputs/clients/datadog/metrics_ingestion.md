@@ -17,7 +17,7 @@ inputs:
         metric_name: aws.lambda.invocations
         interval: 300
         statistic: avg
-        customer_identifier: function_name
+        organization_identifier: function_name
         metric_tag_data:
           - customer_value: my-lambda-function
             tag_string: "function_name:my-lambda-function,environment:prod"
@@ -41,7 +41,7 @@ You need the following scopes for the API: `events_read`.
 - `metric_name`: Name of the metric to ingest.
 - `interval`: The granularity, in seconds, of the returned datapoints.
 - `statistic`: The statistic to use (avg, min, max, or sum).
-- `customer_identifier`: The tag name used to identify different customers or entities.
+- `organization_identifier`: The tag name used to identify different customers or entities.
 - `metric_tag_data`: List of tag configurations for querying the metric.
   - `customer_value`: The value of the customer identifier tag.
   - `tag_string`: The full tag string for querying the metric.
@@ -50,6 +50,6 @@ You need the following scopes for the API: `events_read`.
 
 1. The `statistic` must be one of the predefined `DatadogStatistic` enum values.
 2. The `interval` will be automatically converted to milliseconds in the configuration.
-3. Each `tag_string` in `metric_tag_data` must include the `customer_identifier` with its corresponding `customer_value`.
+3. Each `tag_string` in `metric_tag_data` must include the `organization_identifier` with its corresponding `customer_value`.
 4. The indexer will automatically generate `metric_queries` based on the provided `metric_tag_data`.
 5. Ensure your Datadog API and application keys have permissions to read the specified metrics.

@@ -185,17 +185,17 @@ class CloudwatchClient:
             for idx, metric in enumerate(metrics)
         ]
 
-        customer_id_map = {}
+        organization_id_map = {}
         for query in queries:
             try:
-                customer_id_map[query["Id"]] = next(
+                organization_id_map[query["Id"]] = next(
                     dim["Value"]
                     for dim in query["MetricStat"]["Metric"]["Dimensions"]
-                    if dim["Name"] == metrics_config.customer_identifier
+                    if dim["Name"] == metrics_config.organization_identifier
                 )
             except StopIteration:
                 logger.error(
-                    f"Customer identifier {metrics_config.customer_identifier} not found in metric query dimensions for {metrics_config.metric_name}"
+                    f"Customer identifier {metrics_config.organization_identifier} not found in metric query dimensions for {metrics_config.metric_name}"
                 )
                 raise
 
@@ -203,7 +203,7 @@ class CloudwatchClient:
             queries[i : (i + self.metrics_query_chunk_size)]
             for i in range(0, len(queries), self.metrics_query_chunk_size)
         ]
-        return customer_id_map, chunks
+        return organization_id_map, chunks
 
     def query_metrics(
         self, start_time: PositiveInt, end_time: PositiveInt
@@ -215,7 +215,7 @@ class CloudwatchClient:
             logger.error(msg, exc_info=True)
             raise CloudwatchClientError(msg)
 
-        customer_ids, query_chunks = self._parse_metrics_queries(metrics_config)
+        organization_ids, query_chunks = self._parse_metrics_queries(metrics_config)
 
         for queries in query_chunks:
             params = {
@@ -244,7 +244,7 @@ class CloudwatchClient:
 
                     for metric_data in metric_data_results:
                         query_id = metric_data["Id"]
-                        customer_id = customer_ids[query_id]
+                        organization_id = organization_ids[query_id]
                         timestamps = metric_data["Timestamps"]
                         values = metric_data["Values"]
 
@@ -258,7 +258,7 @@ class CloudwatchClient:
                         for val in metric_values:
                             metrics.append(
                                 {
-                                    "customer_id": customer_id,
+                                    "organization_id": organization_id,
                                     "timestamp": val[0],
                                     "value": val[1],
                                     "label": metrics_config.metric_name,

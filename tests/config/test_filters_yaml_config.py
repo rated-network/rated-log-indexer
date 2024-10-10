@@ -24,8 +24,8 @@ class TestFiltersConfig:
                     "format": "%Y-%m-%d %H:%M:%S",
                 },
                 {
-                    "key": "customer_id",
-                    "value": "customer_id_value",
+                    "key": "organization_id",
+                    "value": "organization_id_value",
                     "field_type": "string",
                 },
             ],
@@ -65,10 +65,10 @@ class TestFiltersConfig:
                     "path": "payload.testing_key",
                 },
                 {
-                    "key": "customer_id",
-                    "value": "customer_id_value",
+                    "key": "organization_id",
+                    "value": "organization_id_value",
                     "field_type": "string",
-                    "path": "payload.customer_id",
+                    "path": "payload.organization_id",
                 },
             ],
         }

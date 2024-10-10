@@ -25,7 +25,7 @@ def test_add_clients(client_manager, valid_config_dict):
             metric_name="test.metric",
             interval=60,
             statistic="AVERAGE",
-            customer_identifier="customer",
+            organization_identifier="customer",
             metric_tag_data=[
                 {"customer_value": "customer1", "tag_string": "customer:customer1"},  # type: ignore
                 {"customer_value": "customer2", "tag_string": "customer:customer2"},  # type: ignore

@@ -35,7 +35,7 @@ def test_http_sink_3_events(
     for event_data, event in zip(body, test_events):
         assert request.method == "POST"
         assert str(request.url) == f"{endpoint}/your_ingestion_id/your_ingestion_key"
-        assert event_data["customer_id"] == event.customer_id
+        assert event_data["organization_id"] == event.organization_id
         assert event_data["timestamp"] == event.event_timestamp.strftime(
             "%Y-%m-%dT%H:%M:%SZ"
         )
@@ -53,7 +53,7 @@ def test_http_sink_batch_size(
         event = test_events[i % len(test_events)]
         new_event = FilteredEvent(
             integration_prefix="",
-            customer_id=f"{event.customer_id}_{i}",
+            organization_id=f"{event.organization_id}_{i}",
             idempotency_key=f"{event.idempotency_key}_{i}",
             event_timestamp=event.event_timestamp + timedelta(seconds=i),
             values={"example_key": f"example_value_{i}"},
@@ -85,7 +85,7 @@ def test_http_sink_mixed_scenario(
         event = test_events[i % len(test_events)]
         new_event = FilteredEvent(
             integration_prefix="",
-            customer_id=f"{event.customer_id}_{i}",
+            organization_id=f"{event.organization_id}_{i}",
             idempotency_key=f"{event.idempotency_key}_{i}",
             event_timestamp=event.event_timestamp + timedelta(seconds=i),
             values={"example_key": f"example_value_{i}"},
@@ -118,7 +118,7 @@ def test_http_sink_time_based_under_timeout(
     events_batch_2 = [
         FilteredEvent(
             integration_prefix="",
-            customer_id=f"{event.customer_id}_new_{i}",
+            organization_id=f"{event.organization_id}_new_{i}",
             idempotency_key=f"{event.idempotency_key}_new_{i}",
             event_timestamp=event.event_timestamp + timedelta(seconds=8),
             values={"example_key": f"new_value_{i}"},
@@ -165,7 +165,7 @@ def test_http_sink_time_based_over_timeout(
     events_batch_2 = [
         FilteredEvent(
             integration_prefix="",
-            customer_id=f"{event.customer_id}_new_{i}",
+            organization_id=f"{event.organization_id}_new_{i}",
             idempotency_key=f"{event.idempotency_key}_new_{i}",
             event_timestamp=event.event_timestamp + timedelta(seconds=11),
             values={"example_key": f"new_value_{i}"},
@@ -216,11 +216,12 @@ def test_http_sink_time_based_over_timeout(
     for i, event in enumerate(all_events):
         if i < 3:
             assert (
-                event["customer_id"] == test_events[i].customer_id
+                event["organization_id"] == test_events[i].organization_id
             ), f"Mismatch in event {i} of first batch"
         else:
             assert (
-                event["customer_id"] == f"{test_events[i-3].customer_id}_new_{i-3}"
+                event["organization_id"]
+                == f"{test_events[i-3].organization_id}_new_{i-3}"
             ), f"Mismatch in event {i} of second batch"
 
     assert not stderr.getvalue(), f"Unexpected error output: {stderr.getvalue()}"

@@ -41,7 +41,7 @@ def valid_config_with_secrets(valid_config_dict):
                 "log_example": {},
                 "fields": [
                     {
-                        "key": "customer_id",
+                        "key": "organization_id",
                         "field_type": "string",
                         "path": "path1",
                     }

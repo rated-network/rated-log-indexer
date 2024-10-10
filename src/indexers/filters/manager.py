@@ -68,7 +68,7 @@ class FilterManager:
                 log_entry.content, version=self.filter_config.version  # type: ignore
             )
             fields = parsed_log.parsed_fields
-            if not fields or not fields.get("customer_id"):
+            if not fields or not fields.get("organization_id"):
                 return None
 
             validated_fields = {
@@ -80,8 +80,8 @@ class FilterManager:
                 integration_prefix=self.integration_prefix,
                 idempotency_key=log_entry.log_id,
                 event_timestamp=log_entry.event_timestamp,
-                customer_id=parsed_log.parsed_fields.get(
-                    "customer_id", "MISSING_CUSTOMER_ID"
+                organization_id=parsed_log.parsed_fields.get(
+                    "organization_id", "MISSING_organization_id"
                 ),
                 values=validated_fields,
             )
@@ -99,7 +99,7 @@ class FilterManager:
         try:
             idempotency_key = generate_idempotency_key(
                 event_timestamp=metrics_entry.event_timestamp,
-                customer_id=metrics_entry.customer_id,
+                organization_id=metrics_entry.organization_id,
                 values={metrics_entry.metric_name: metrics_entry.value},
             )
 
@@ -107,7 +107,7 @@ class FilterManager:
                 integration_prefix=self.integration_prefix,
                 idempotency_key=idempotency_key,
                 event_timestamp=metrics_entry.event_timestamp,
-                customer_id=metrics_entry.customer_id,
+                organization_id=metrics_entry.organization_id,
                 values={
                     self._replace_special_characters(
                         metrics_entry.metric_name

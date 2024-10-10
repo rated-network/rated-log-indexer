@@ -29,10 +29,10 @@ def valid_config_dict():
                             "path": "payload.example_key",
                         },
                         {
-                            "key": "customer_id",
-                            "value": "customer_id_value",
+                            "key": "organization_id",
+                            "value": "organization_id_value",
                             "field_type": "string",
-                            "path": "payload.customer_id",
+                            "path": "payload.organization_id",
                         },
                     ],
                 },

@@ -18,7 +18,7 @@ inputs:
         metric_name: Invocations
         period: 300
         statistic: Average
-        customer_identifier: FunctionName
+        organization_identifier: FunctionName
         metric_queries:
           - - name: FunctionName
               value: my-lambda-function
@@ -59,7 +59,7 @@ You need the following permissions:
 - `metric_name`: Name of the metric to ingest.
 - `period`: The granularity, in seconds, of the returned datapoints.
 - `statistic`: The statistic to use (Average, Minimum, Maximum, Sum, or SampleCount).
-- `customer_identifier`: The dimension name used to identify different customers or entities.
+- `organization_identifier`: The dimension name used to identify different customers or entities.
 - `metric_queries`: List of dimension sets to query for the metric.
 
 For more information on CloudWatch metrics, see [CloudWatch Metrics and Dimensions](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/cloudwatch_concepts.html).
@@ -68,6 +68,6 @@ For more information on CloudWatch metrics, see [CloudWatch Metrics and Dimensio
 
 1. The `statistic` must be one of the predefined `CloudwatchStatistic` enum values.
 2. Each item in `metric_queries` is a list of dimensions for a specific query.
-3. The `customer_identifier` must be present in each set of dimensions in `metric_queries`.
+3. The `organization_identifier` must be present in each set of dimensions in `metric_queries`.
 4. Adjust the `period` based on your monitoring needs and CloudWatch metric resolution.
 5. Ensure your AWS credentials have permissions to read the specified CloudWatch metrics.
