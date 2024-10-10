@@ -19,7 +19,7 @@ inputs:
         - key: "status_code"
           field_type: "integer"
           path: "status_code"
-        - key: "customer_id"
+        - key: "organization_id"
           field_type: "string"
           path: "org.id"
         - key: "path"

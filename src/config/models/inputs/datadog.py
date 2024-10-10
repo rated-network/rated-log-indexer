@@ -25,7 +25,7 @@ class DatadogMetricsConfig(BaseModel):
     metric_name: StrictStr
     interval: PositiveInt
     statistic: StrictStr
-    customer_identifier: StrictStr
+    organization_identifier: StrictStr
     metric_tag_data: List[DatadogTag]
     metric_queries: Optional[List[DatadogTag]] = None
 
@@ -48,9 +48,9 @@ class DatadogMetricsConfig(BaseModel):
     @model_validator(mode="before")
     def validate_metric_tag_data(cls, values):
         metric_tag_data = values.get("metric_tag_data")
-        customer_identifier = values.get("customer_identifier")
+        organization_identifier = values.get("organization_identifier")
         for tag in metric_tag_data:
-            customer_string = f"{customer_identifier}:{tag['customer_value']}"
+            customer_string = f"{organization_identifier}:{tag['customer_value']}"
             if customer_string not in tag["tag_string"]:
                 raise ValueError(
                     "Customer identifier is not found in the metric tag string."
