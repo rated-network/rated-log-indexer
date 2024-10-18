@@ -4,7 +4,7 @@ from google.cloud import storage  # type: ignore
 from google.auth.credentials import Credentials  # type: ignore
 
 from src.clients.google import GoogleClient
-from src.config.models.inputs.google import GoogleConfig, StorageConfig
+from src.config.models.inputs.google import GoogleConfig, StorageConfig, AuthMethod
 
 
 @pytest.fixture
@@ -23,7 +23,7 @@ def mock_storage_client():
 def gcp_config():
     return GoogleConfig(
         project_id="test-project",
-        auth_method="SERVICE_ACCOUNT",
+        auth_method=AuthMethod.SERVICE_ACCOUNT,
         credentials_path="/path/to/credentials.json",
         storage_config=StorageConfig(bucket_name="test-bucket", prefix=None),
     )

@@ -22,20 +22,9 @@ class StorageConfig(BaseModel):
 
 class GoogleConfig(BaseModel):
     project_id: StrictStr
-    auth_method: StrictStr
+    auth_method: AuthMethod
     credentials_path: Optional[StrictStr] = None
     storage_config: Optional[StorageConfig] = None
-
-    @model_validator(mode="before")
-    def validate_auth_method(cls, values):
-        method = values.get("auth_method")
-        if method and method.upper() not in AuthMethod.__members__:
-            raise ValueError(
-                f'Invalid auth method found "{method}": please use one of {AuthMethod.__members__.keys()}'
-                # noqa
-            )
-        values["auth_method"] = AuthMethod[method].value
-        return values
 
     @model_validator(mode="before")
     def validate_credentials_path(cls, values):

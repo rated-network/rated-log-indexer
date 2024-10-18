@@ -1,6 +1,7 @@
 import uuid
 from typing import Dict, Union, Optional
 
+import structlog
 from pydantic import StrictStr
 
 from src.clients.google import GoogleClient
@@ -12,6 +13,9 @@ from src.config.models.inputs.datadog import DatadogConfig
 from src.config.models.inputs.input import IntegrationTypes
 
 
+logger = structlog.get_logger(__name__)
+
+
 class ClientManager:
     def __init__(self):
         self.clients: Dict[
@@ -21,9 +25,12 @@ class ClientManager:
     def add_client(
         self,
         integration_type: IntegrationTypes,
-        config: Union[CloudwatchConfig, DatadogConfig],
+        config: Union[CloudwatchConfig, DatadogConfig, GoogleConfig],
     ) -> StrictStr:
         client_id = str(uuid.uuid4())
+
+        logger.debug(f"Adding client for integration type: {integration_type}")
+
         if integration_type == IntegrationTypes.CLOUDWATCH and isinstance(
             config, CloudwatchConfig
         ):

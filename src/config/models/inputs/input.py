@@ -3,6 +3,7 @@ from enum import Enum
 from pydantic import BaseModel, model_validator, Field, StrictStr
 from typing import Optional
 
+from src.config.models.inputs.google import GoogleConfig
 from src.config.models.offset import OffsetYamlConfig
 from src.config.models.filters import FiltersYamlConfig
 from src.config.models.inputs.cloudwatch import CloudwatchConfig
@@ -31,7 +32,7 @@ class InputYamlConfig(BaseModel):
 
     cloudwatch: Optional[CloudwatchConfig] = None
     datadog: Optional[DatadogConfig] = None
-    google: Optional[StrictStr] = None
+    google: Optional[GoogleConfig] = None
 
     @model_validator(mode="before")
     def validate_filters_requirement(cls, values):

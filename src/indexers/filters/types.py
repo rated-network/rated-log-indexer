@@ -4,6 +4,7 @@ import json
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Dict, Any, Union
+from dateutil import parser  # type: ignore
 
 from src.utils.time_conversion import from_milliseconds
 
@@ -107,13 +108,18 @@ class LogEntry:
             msg = f"Timestamp is missing in the log object: {log}"
             logger.error(msg)
             raise ValueError(msg)
-        else:
-            try:
-                event_timestamp = datetime.fromtimestamp(timestamp, tz=timezone.utc)
-            except (ValueError, TypeError) as e:
-                msg = f"Invalid timestamp format: {timestamp}"
-                logger.error(msg, exc_info=True)
-                raise e
+
+        if not isinstance(timestamp, str):
+            msg = f"Timestamp is not a string: {timestamp}"
+            logger.error(msg)
+            raise TypeError(msg)
+
+        try:
+            event_timestamp = parser.isoparse(timestamp)
+        except (ValueError, OverflowError) as e:
+            msg = f"Invalid timestamp format: {timestamp}"
+            logger.error(msg, exc_info=True)
+            raise ValueError(msg) from e
 
         return cls(
             log_id=log["id"],

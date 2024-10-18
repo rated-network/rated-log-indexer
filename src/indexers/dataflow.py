@@ -8,6 +8,7 @@ from bytewax.inputs import FixedPartitionedSource
 from bytewax.outputs import DynamicSink
 from pydantic import StrictStr
 
+from src.config.models.inputs.google import GoogleConfig
 from src.clients.google import GoogleClient
 from src.clients.manager import ClientManager
 from src.config.models.inputs.cloudwatch import CloudwatchConfig
@@ -38,18 +39,6 @@ def get_client_instance(
     return client
 
 
-def fetch_storage_objects(
-    time_range: TimeRange, integration_id: StrictStr, integration_type: IntegrationTypes
-) -> Iterator[LogEntry]:
-    client = get_client_instance(integration_id)
-
-    if integration_type == IntegrationTypes.GOOGLE.value:
-        raw_objects = client.query_objects(time_range.start_time, time_range.end_time)
-        return (LogEntry.from_google_object(obj) for obj in raw_objects)
-    else:
-        raise ValueError(f"Unsupported integration type: {integration_type}")
-
-
 def fetch_logs(
     time_range: TimeRange, integration_id: StrictStr, integration_type: IntegrationTypes
 ) -> Iterator[LogEntry]:
@@ -61,6 +50,9 @@ def fetch_logs(
     elif integration_type == IntegrationTypes.DATADOG.value:
         raw_logs = client.query_logs(time_range.start_time, time_range.end_time)
         return (LogEntry.from_datadog_log(log) for log in raw_logs)
+    elif integration_type == IntegrationTypes.GOOGLE.value:
+        raw_objects = client.query_objects(time_range.start_time, time_range.end_time)
+        return (LogEntry.from_google_object(obj) for obj in raw_objects)
     else:
         raise ValueError(f"Unsupported integration type: {integration_type}")
 
@@ -101,6 +93,11 @@ def parse_config(
     integration_prefix_count: defaultdict = defaultdict(int)
 
     for input_config in config.inputs:
+        config_map = {
+            IntegrationTypes.CLOUDWATCH: input_config.cloudwatch,
+            IntegrationTypes.DATADOG: input_config.datadog,
+            IntegrationTypes.GOOGLE: input_config.google,
+        }
         integration_prefix = input_config.integration_prefix
         config_index = integration_prefix_count[integration_prefix]
         integration_prefix_count[integration_prefix] += 1
@@ -109,11 +106,7 @@ def parse_config(
             integration_prefix=integration_prefix, config_index=config_index
         )
 
-        client_config = (
-            input_config.cloudwatch
-            if input_config.integration == IntegrationTypes.CLOUDWATCH
-            else input_config.datadog
-        )
+        client_config = config_map[input_config.integration]
         fetcher = fetch_logs if input_config.type == InputTypes.LOGS else fetch_metrics
         filter_manager = FilterManager(
             input_config.filters, input_config.integration_prefix, input_config.type
@@ -124,6 +117,8 @@ def parse_config(
             if input_config.type == InputTypes.LOGS
             else filter_manager.parse_and_filter_metrics
         )
+        print(f"Integration: {input_config.integration}")
+        print(f"Is GoogleConfig? {isinstance(client_config, GoogleConfig)}")
         inputs.append(
             (
                 input_config.integration,

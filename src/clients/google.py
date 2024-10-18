@@ -1,5 +1,4 @@
 import json
-import re
 from enum import Enum
 
 import structlog
@@ -35,18 +34,12 @@ class GoogleClient:
 
     def __init__(self, config: GoogleConfig, limit: Optional[PositiveInt] = None):
         self.config = config
-        self.storage_config = config.storage_config
+        self.storage_config = config.storage_config if config.storage_config else None
         self.storage_client = self._get_client(ClientType.STORAGE)
         self.bucket_name = (
             self.storage_config.bucket_name if self.storage_config else None
         )
-        self.bucket = (
-            self.storage_client.bucket(
-                self.bucket_name, user_project=self.config.project_id
-            )
-            if self.bucket_name
-            else None
-        )
+        self.prefix = self.storage_config.prefix if self.storage_config else None
         self.log_features = (
             self.storage_config.log_features if self.storage_config else None
         )
@@ -69,7 +62,7 @@ class GoogleClient:
     @stamina.retry(on=GoogleClientError)
     def make_api_call(self) -> Any:
         try:
-            return self.bucket.list_blobs()
+            return self.storage_client.list_blobs(self.bucket_name, prefix=self.prefix)
         except Exception as e:
             msg = f"Unexpected error querying GCP: {str(e)}"
             logger.error(msg, exc_info=True)
@@ -114,29 +107,38 @@ class GoogleClient:
         stream = blob.download_as_text().splitlines()
         for line_number, line in enumerate(stream, 1):
             # Split the line into individual JSON objects
-            json_objects = re.findall(r"\{[^}]+}", line)
-
-            for json_str in json_objects:
+            try:
+                content = json.loads(line.strip())
                 try:
-                    content = json.loads(json_str)
-                    row = {
-                        "content": content,
-                        "id": content.get(self.log_features.id),
-                        "timestamp": content.get(self.log_features.timestamp),
-                        "_blob_name": blob.name,
-                        "_line_number": line_number,
-                        "_row_number": row_count,
-                    }
-                    yield row
-                    row_count += 1
-                except json.JSONDecodeError as e:
+                    log_id = content[self.log_features.id]
+                    timestamp = content[self.log_features.timestamp]
+                except KeyError as e:
                     error_msg = (
-                        f"JSON decode error in {blob.name}, line {line_number}, object {row_count}. "
+                        f"Missing required fields in {blob.name}, line {line_number}, object {row_count}. "
                         f"Error: {str(e)}. "
-                        f"Problematic content: {json_str[:200]}..."
+                        f"Problematic content: {content[:200]}..."
                     )
                     logger.error(error_msg)
                     raise GoogleClientError(error_msg) from e
+
+                row = {
+                    "content": content,
+                    "id": log_id,
+                    "timestamp": timestamp,
+                    "_blob_name": blob.name,
+                    "_line_number": line_number,
+                    "_row_number": row_count,
+                }
+                yield row
+                row_count += 1
+            except json.JSONDecodeError as e:
+                error_msg = (
+                    f"JSON decode error in {blob.name}, line {line_number}, object {row_count}. "
+                    f"Error: {str(e)}. "
+                    f"Problematic content: {line[:200]}..."
+                )
+                logger.error(error_msg)
+                raise GoogleClientError(error_msg) from e
 
         logger.debug(f"Processed {row_count} objects from blob {blob.name}")
 
