@@ -92,6 +92,39 @@ class LogEntry:
             event_timestamp=event_timestamp,
         )
 
+    @classmethod
+    def from_google_object(cls, log: Dict[str, Any]) -> "LogEntry":
+        content: Union[str, dict]
+        content = log.get("content", {})
+        if content and isinstance(content, dict):
+            is_json = True
+        else:
+            is_json = False
+
+        timestamp = log.get("timestamp")
+
+        if timestamp is None:
+            msg = f"Timestamp is missing in the log object: {log}"
+            logger.error(msg)
+            raise ValueError(msg)
+        else:
+            try:
+                event_timestamp = datetime.fromtimestamp(timestamp, tz=timezone.utc)
+            except (ValueError, TypeError) as e:
+                msg = f"Invalid timestamp format: {timestamp}"
+                logger.error(msg, exc_info=True)
+                raise e
+
+        return cls(
+            log_id=log["id"],
+            content=content,
+            is_json=is_json,
+            metadata={
+                "blob": log.get("_blob_name"),
+            },
+            event_timestamp=event_timestamp,
+        )
+
 
 @dataclass
 class MetricEntry:

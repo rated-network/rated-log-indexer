@@ -8,6 +8,7 @@ from bytewax.inputs import FixedPartitionedSource
 from bytewax.outputs import DynamicSink
 from pydantic import StrictStr
 
+from src.clients.google import GoogleClient
 from src.clients.manager import ClientManager
 from src.config.models.inputs.cloudwatch import CloudwatchConfig
 from src.config.models.inputs.datadog import DatadogConfig
@@ -28,11 +29,25 @@ logger = structlog.get_logger(__name__)
 client_manager = ClientManager()
 
 
-def get_client_instance(client_id: StrictStr) -> Union[CloudwatchClient, DatadogClient]:
+def get_client_instance(
+    client_id: StrictStr,
+) -> Union[CloudwatchClient, DatadogClient, GoogleClient]:
     client = client_manager.get_client(client_id)
     if client is None:
         raise ValueError(f"No client found for client_id: {client_id}")
     return client
+
+
+def fetch_storage_objects(
+    time_range: TimeRange, integration_id: StrictStr, integration_type: IntegrationTypes
+) -> Iterator[LogEntry]:
+    client = get_client_instance(integration_id)
+
+    if integration_type == IntegrationTypes.GOOGLE.value:
+        raw_objects = client.query_objects(time_range.start_time, time_range.end_time)
+        return (LogEntry.from_google_object(obj) for obj in raw_objects)
+    else:
+        raise ValueError(f"Unsupported integration type: {integration_type}")
 
 
 def fetch_logs(

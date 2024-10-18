@@ -12,6 +12,7 @@ from src.config.models.inputs.datadog import DatadogConfig
 class IntegrationTypes(str, Enum):
     CLOUDWATCH = "cloudwatch"
     DATADOG = "datadog"
+    GOOGLE = "google"
 
 
 class InputTypes(str, Enum):
@@ -30,6 +31,7 @@ class InputYamlConfig(BaseModel):
 
     cloudwatch: Optional[CloudwatchConfig] = None
     datadog: Optional[DatadogConfig] = None
+    google: Optional[StrictStr] = None
 
     @model_validator(mode="before")
     def validate_filters_requirement(cls, values):
