@@ -21,3 +21,4 @@ datadog-api-client==2.26.0
 rated-parser==0.1.2
 freezegun==1.5.1
 sentry-sdk
+google-cloud-storage==2.18.2

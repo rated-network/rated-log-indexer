@@ -1,8 +1,11 @@
 import uuid
 from typing import Dict, Union, Optional
 
+import structlog
 from pydantic import StrictStr
 
+from src.clients.google import GoogleClient
+from src.config.models.inputs.google import GoogleConfig
 from src.clients.cloudwatch import CloudwatchClient
 from src.clients.datadog import DatadogClient
 from src.config.models.inputs.cloudwatch import CloudwatchConfig
@@ -10,16 +13,24 @@ from src.config.models.inputs.datadog import DatadogConfig
 from src.config.models.inputs.input import IntegrationTypes
 
 
+logger = structlog.get_logger(__name__)
+
+
 class ClientManager:
     def __init__(self):
-        self.clients: Dict[str, Union[CloudwatchClient, DatadogClient]] = {}
+        self.clients: Dict[
+            str, Union[CloudwatchClient, DatadogClient, GoogleClient]
+        ] = {}
 
     def add_client(
         self,
         integration_type: IntegrationTypes,
-        config: Union[CloudwatchConfig, DatadogConfig],
+        config: Union[CloudwatchConfig, DatadogConfig, GoogleConfig],
     ) -> StrictStr:
         client_id = str(uuid.uuid4())
+
+        logger.debug(f"Adding client for integration type: {integration_type}")
+
         if integration_type == IntegrationTypes.CLOUDWATCH and isinstance(
             config, CloudwatchConfig
         ):
@@ -28,11 +39,15 @@ class ClientManager:
             config, DatadogConfig
         ):
             self.clients[client_id] = DatadogClient(config)
+        elif integration_type == IntegrationTypes.GOOGLE and isinstance(
+            config, GoogleConfig
+        ):
+            self.clients[client_id] = GoogleClient(config)
         else:
             raise ValueError(f"Unsupported integration type: {integration_type}")
         return client_id
 
     def get_client(
         self, client_id: str
-    ) -> Optional[Union[CloudwatchClient, DatadogClient]]:
+    ) -> Optional[Union[CloudwatchClient, DatadogClient, GoogleClient]]:
         return self.clients.get(client_id)
