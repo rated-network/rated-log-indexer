@@ -11,14 +11,14 @@ logger = structlog.get_logger(__name__)
 
 
 def generate_idempotency_key(
-    event_timestamp: datetime, customer_id: str, values: dict
+    event_timestamp: datetime, organization_id: str, values: dict
 ) -> str:
     """
     Generate an idempotency key based on event timestamp, customer ID, and values.
     """
     timestamp_str = event_timestamp.isoformat()
     sorted_values = json.dumps(values, sort_keys=True)
-    components = f"{timestamp_str}|{customer_id}|{sorted_values}"
+    components = f"{timestamp_str}|{organization_id}|{sorted_values}"
     return hashlib.sha256(components.encode()).hexdigest()
 
 
@@ -97,7 +97,7 @@ class LogEntry:
 class MetricEntry:
     metric_name: str
     value: float
-    customer_id: str
+    organization_id: str
     event_timestamp: datetime
 
     @classmethod
@@ -105,7 +105,7 @@ class MetricEntry:
         return cls(
             metric_name=metric["label"],
             value=metric["value"],
-            customer_id=metric["customer_id"],
+            organization_id=metric["organization_id"],
             event_timestamp=metric[
                 "timestamp"
             ],  # TODO: Check if datetime conversion is necessary
@@ -116,7 +116,7 @@ class MetricEntry:
         return cls(
             metric_name=metric["metric_name"],
             value=metric["value"],
-            customer_id=metric["customer_id"],
+            organization_id=metric["organization_id"],
             event_timestamp=from_milliseconds(metric["timestamp"]),
         )
 
@@ -126,5 +126,5 @@ class FilteredEvent:
     integration_prefix: str
     idempotency_key: str
     event_timestamp: datetime
-    customer_id: str
+    organization_id: str
     values: dict

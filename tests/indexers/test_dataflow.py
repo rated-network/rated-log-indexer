@@ -55,12 +55,12 @@ def test_logs_dataflow(
         {
             "eventId": "mock_log_one",
             "timestamp": 1723041096000,
-            "message": '{"example_key": "example_value_one", "data": {"customer_id": "customer_one"}}',
+            "message": '{"example_key": "example_value_one", "data": {"organization_id": "customer_one"}}',
         },
         {
             "eventId": "mock_log_two",
             "timestamp": 1723041096100,
-            "message": '{"example_key": "example_value_two", "data": {"customer_id": "customer_two"}}',
+            "message": '{"example_key": "example_value_two", "data": {"organization_id": "customer_two"}}',
         },
     ]
     sample_log_entries = [LogEntry.from_cloudwatch_log(log) for log in sample_logs]
@@ -77,7 +77,7 @@ def test_logs_dataflow(
         log_example={
             "message": {
                 "example_key": "example_value_two",
-                "customer_id": "customer_two",
+                "organization_id": "customer_two",
             },
         },
         fields=[
@@ -87,9 +87,9 @@ def test_logs_dataflow(
                 path="example_key",
             ),
             JsonFieldDefinition(
-                key="customer_id",
+                key="organization_id",
                 field_type=FieldType.STRING,
-                path="data.customer_id",
+                path="data.organization_id",
             ),
         ],
     )
@@ -145,7 +145,7 @@ def test_metrics_dataflow(
             metric_name="test.metric",
             interval=60,
             statistic="AVERAGE",
-            customer_identifier="customer",
+            organization_identifier="customer",
             metric_tag_data=[
                 {"customer_value": "customer1", "tag_string": "customer:customer1"},  # type: ignore
                 {"customer_value": "customer2", "tag_string": "customer:customer2"},  # type: ignore
@@ -158,25 +158,25 @@ def test_metrics_dataflow(
     sample_metrics = [
         {
             "metric_name": "test.metric",
-            "customer_id": "customer1",
+            "organization_id": "customer1",
             "timestamp": 1625097600000,
             "value": 1.0,
         },
         {
             "metric_name": "test.metric",
-            "customer_id": "customer1",
+            "organization_id": "customer1",
             "timestamp": 1625097660000,
             "value": 2.0,
         },
         {
             "metric_name": "test.metric",
-            "customer_id": "customer2",
+            "organization_id": "customer2",
             "timestamp": 1625097720000,
             "value": 3.0,
         },
         {
             "metric_name": "test.metric",
-            "customer_id": "customer2",
+            "organization_id": "customer2",
             "timestamp": 1625097780000,
             "value": 4.0,
         },
@@ -280,7 +280,7 @@ def test_multiple_inputs_dataflow(
                     path="event",
                 ),
                 JsonFieldDefinition(
-                    key="customer_id",
+                    key="organization_id",
                     field_type=FieldType.STRING,
                     path="user_id",
                 ),
@@ -374,7 +374,7 @@ def test_multiple_inputs_dataflow(
     sent_data = body
 
     for item in sent_data:
-        assert "customer_id" in item, f"Missing 'customer_id' in {item}"
+        assert "organization_id" in item, f"Missing 'organization_id' in {item}"
         assert "timestamp" in item, f"Missing 'timestamp' in {item}"
         assert "key" in item, f"Missing 'key' in {item}"
         assert "values" in item, f"Missing 'values' in {item}"
@@ -409,7 +409,7 @@ def test_metrics_logs_inputs_dataflow(
                 metric_name="test.metric",
                 interval=60,
                 statistic="AVERAGE",
-                customer_identifier="customer",
+                organization_identifier="customer",
                 metric_tag_data=[
                     {"customer_value": "customer1", "tag_string": "customer:customer1"},  # type: ignore
                     {"customer_value": "customer2", "tag_string": "customer:customer2"},  # type: ignore
@@ -468,7 +468,7 @@ def test_metrics_logs_inputs_dataflow(
                     key="event", field_type=FieldType.STRING, path="event"
                 ),
                 JsonFieldDefinition(
-                    key="customer_id", field_type=FieldType.STRING, path="user_id"
+                    key="organization_id", field_type=FieldType.STRING, path="user_id"
                 ),
                 JsonFieldDefinition(
                     key="ip_address", field_type=FieldType.STRING, path="ip_address"
@@ -490,25 +490,25 @@ def test_metrics_logs_inputs_dataflow(
     sample_metrics = [
         {
             "metric_name": "test.metric",
-            "customer_id": "customer1",
+            "organization_id": "customer1",
             "timestamp": 1625097600000,
             "value": 1.0,
         },
         {
             "metric_name": "test.metric",
-            "customer_id": "customer1",
+            "organization_id": "customer1",
             "timestamp": 1625097660000,
             "value": 2.0,
         },
         {
             "metric_name": "test.metric",
-            "customer_id": "customer2",
+            "organization_id": "customer2",
             "timestamp": 1625097720000,
             "value": 3.0,
         },
         {
             "metric_name": "test.metric",
-            "customer_id": "customer2",
+            "organization_id": "customer2",
             "timestamp": 1625097780000,
             "value": 4.0,
         },
@@ -599,7 +599,7 @@ def test_metrics_logs_inputs_dataflow(
 
     sent_data = body
     for item in sent_data:
-        assert "customer_id" in item, f"Missing 'customer_id' in {item}"
+        assert "organization_id" in item, f"Missing 'organization_id' in {item}"
         assert "timestamp" in item, f"Missing 'timestamp' in {item}"
         assert "key" in item, f"Missing 'key' in {item}"
         assert "values" in item, f"Missing 'values' in {item}"

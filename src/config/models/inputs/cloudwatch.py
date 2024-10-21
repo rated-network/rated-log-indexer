@@ -31,7 +31,7 @@ class CloudwatchMetricsConfig(BaseModel):
     metric_name: StrictStr
     period: PositiveInt
     statistic: StrictStr
-    customer_identifier: StrictStr
+    organization_identifier: StrictStr
     metric_queries: List[List[CloudwatchDimension]]
 
     @model_validator(mode="before")
@@ -48,10 +48,10 @@ class CloudwatchMetricsConfig(BaseModel):
     @model_validator(mode="before")
     def validate_metric_queries(cls, values):
         metric_queries = values.get("metric_queries")
-        customer_identifier = values.get("customer_identifier")
+        organization_identifier = values.get("organization_identifier")
         if metric_queries:
             for query in metric_queries:
-                if customer_identifier not in [q["name"] for q in query]:
+                if organization_identifier not in [q["name"] for q in query]:
                     raise ValueError(
                         "Customer identifier is not found in the metric query dimensions."
                     )

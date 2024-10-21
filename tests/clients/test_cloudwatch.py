@@ -31,9 +31,9 @@ class MockConfig(CloudwatchConfig):
                 metric_name="test_metric_label",
                 period=60,
                 statistic="AVERAGE",
-                customer_identifier="customer_id",
+                organization_identifier="organization_id",
                 metric_queries=[  # type: ignore
-                    [{"name": "customer_id", "value": "customer1"}],
+                    [{"name": "organization_id", "value": "customer1"}],
                 ],
             ),
         )
@@ -188,19 +188,19 @@ def test_query_metrics(mock_client):
 
     expected_metrics = [
         {
-            "customer_id": "customer1",
+            "organization_id": "customer1",
             "timestamp": 1625097600000,
             "value": 1.0,
             "label": "test_metric_label",
         },
         {
-            "customer_id": "customer1",
+            "organization_id": "customer1",
             "timestamp": 1625097660000,
             "value": 2.0,
             "label": "test_metric_label",
         },
         {
-            "customer_id": "customer1",
+            "organization_id": "customer1",
             "timestamp": 1625097720000,
             "value": 3.0,
             "label": "test_metric_label",
@@ -217,11 +217,11 @@ def test_query_metrics(mock_client):
 def test_parse_metrics_queries():
     config = MockConfig()
     cloudwatch_client = CloudwatchClient(config)
-    customer_id_map, query_chunks = cloudwatch_client._parse_metrics_queries(
+    organization_id_map, query_chunks = cloudwatch_client._parse_metrics_queries(
         config.metrics_config
     )
 
-    expected_customer_id_map = {"test_metric_label_query_0": "customer1"}
+    expected_organization_id_map = {"test_metric_label_query_0": "customer1"}
     expected_query_chunks = [
         [
             {
@@ -230,7 +230,9 @@ def test_parse_metrics_queries():
                     "Metric": {
                         "Namespace": "test-namespace",
                         "MetricName": "test_metric_label",
-                        "Dimensions": [{"Name": "customer_id", "Value": "customer1"}],
+                        "Dimensions": [
+                            {"Name": "organization_id", "Value": "customer1"}
+                        ],
                     },
                     "Period": 60,
                     "Stat": "Average",
@@ -240,7 +242,7 @@ def test_parse_metrics_queries():
         ]
     ]
 
-    assert customer_id_map == expected_customer_id_map
+    assert organization_id_map == expected_organization_id_map
     assert query_chunks == expected_query_chunks
 
 

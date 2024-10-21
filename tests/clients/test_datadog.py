@@ -30,7 +30,7 @@ class MockDatadogConfig(DatadogConfig):
                 metric_name="test.metric",
                 interval=60,
                 statistic="AVERAGE",
-                customer_identifier="customer",
+                organization_identifier="customer",
                 metric_tag_data=[  # type: ignore
                     {"customer_value": "customer1", "tag_string": "customer:customer1"},
                     {"customer_value": "customer2", "tag_string": "customer:customer2"},
@@ -188,37 +188,37 @@ def test_query_metrics(mock_metrics_api):
     expected_metrics = [
         {
             "metric_name": "test.metric",
-            "customer_id": "customer1",
+            "organization_id": "customer1",
             "timestamp": 1625097600000,
             "value": 1.0,
         },
         {
             "metric_name": "test.metric",
-            "customer_id": "customer1",
+            "organization_id": "customer1",
             "timestamp": 1625097660000,
             "value": 2.0,
         },
         {
             "metric_name": "test.metric",
-            "customer_id": "customer1",
+            "organization_id": "customer1",
             "timestamp": 1625097720000,
             "value": 3.0,
         },
         {
             "metric_name": "test.metric",
-            "customer_id": "customer2",
+            "organization_id": "customer2",
             "timestamp": 1625097600000,
             "value": 4.0,
         },
         {
             "metric_name": "test.metric",
-            "customer_id": "customer2",
+            "organization_id": "customer2",
             "timestamp": 1625097660000,
             "value": 5.0,
         },
         {
             "metric_name": "test.metric",
-            "customer_id": "customer2",
+            "organization_id": "customer2",
             "timestamp": 1625097720000,
             "value": 6.0,
         },
@@ -261,7 +261,7 @@ def test_parse_metrics_response():
     expected_metrics = [
         {
             "metric_name": "test.metric",
-            "customer_id": "customer1",
+            "organization_id": "customer1",
             "query_index": 0,
             "data": [
                 {"timestamp": 1625097600000, "value": 1.0},
@@ -270,7 +270,7 @@ def test_parse_metrics_response():
         },
         {
             "metric_name": "test.metric",
-            "customer_id": "customer2",
+            "organization_id": "customer2",
             "query_index": 1,
             "data": [{"timestamp": 1625097720000, "value": 3.0}],
         },
