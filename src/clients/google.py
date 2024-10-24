@@ -1,4 +1,5 @@
 import json
+import os
 from enum import Enum
 
 import structlog
@@ -26,7 +27,14 @@ class GoogleClientError(Exception):
         super().__init__(self.message)
 
 
+class FileTypeValidationError(GoogleClientError):
+    """Raised when a file fails type validation."""
+
+    pass
+
+
 class GoogleClient:
+    SUPPORTED_EXTENSIONS = {".json", ".jsonl", ".log"}
 
     def __init__(self, config: GoogleConfig, limit: Optional[PositiveInt] = None):
         """Google Cloud client supporting Logs, Metrics, and Storage APIs."""
@@ -67,6 +75,17 @@ class GoogleClient:
                 params["prefix"] = self.storage_config.prefix
         return params
 
+    def _validate_file_type(self, blob: storage.Blob) -> None:
+        _, file_extension = os.path.splitext(blob.name.lower())
+
+        # Then check if it's in allowed extensions
+        if file_extension not in self.SUPPORTED_EXTENSIONS:
+            error_msg = (
+                f"File type '{file_extension}' is not supported for blob: {blob.name}."
+            )
+            logger.error(error_msg)
+            raise FileTypeValidationError(error_msg)
+
     @stamina.retry(on=GoogleClientError)
     def make_api_call(self, call_type: GoogleInputs, params: Dict[str, Any]) -> Any:
         if call_type not in self.call_map:
@@ -98,20 +117,26 @@ class GoogleClient:
 
             # Check if the blob was created within the specified time range
             if start_date <= blob.time_created <= end_date:
-                if self.storage_input == StorageInputs.LOGS:
-                    try:
-                        logger.debug(f"Processing blob: {blob.name}")
-                        yield from self._process_blob_content_for_logs(blob)
-                        total_rows += 1
-                    except Exception as e:
-                        msg = f"Error processing blob {blob.name}: {str(e)}"
-                        logger.error(msg, exc_info=True)
-                        raise GoogleClientError(msg) from e
-                else:
-                    # Extend this to support metrics in the future.
-                    msg = "Unsupported storage config type"
-                    logger.error(msg)
-                    raise GoogleClientError(msg)
+                try:
+                    self._validate_file_type(blob)
+
+                    if self.storage_input == StorageInputs.LOGS:
+                        try:
+                            logger.debug(f"Processing blob: {blob.name}")
+                            yield from self._process_blob_content_for_logs(blob)
+                            total_rows += 1
+                        except Exception as e:
+                            msg = f"Error processing blob {blob.name}: {str(e)}"
+                            logger.error(msg, exc_info=True)
+                            raise GoogleClientError(msg) from e
+                    else:
+                        msg = "Unsupported storage config type"
+                        logger.error(msg)
+                        raise GoogleClientError(msg)
+
+                except FileTypeValidationError as e:
+                    logger.warning(str(e))
+                    continue
 
         logger.info(
             f"Processed {total_rows} blobs from GCP Storage",

@@ -61,6 +61,17 @@ def google_client(mock_storage_client, mock_credentials, basic_config):
     return GoogleClient(config=basic_config)
 
 
+@pytest.fixture
+def mock_blob_with_name():
+    def _create_blob(name: str):
+        blob = Mock(spec=storage.Blob)
+        blob.name = name
+        blob.time_created = datetime(2024, 1, 1, tzinfo=timezone.utc)
+        return blob
+
+    return _create_blob
+
+
 def test_init(google_client, basic_config):
     assert google_client.config == basic_config
     assert google_client.input_type == GoogleInputs.OBJECTS
@@ -76,6 +87,13 @@ def test_get_params(google_client):
 def test_get_params_invalid_type(google_client):
     with pytest.raises(ValueError):
         google_client._get_client("invalid_type")  # type: ignore
+
+
+def test_default_file_type_validation(google_client, mock_blob_with_name):
+    # Test valid extensions
+    for ext in [".json", ".jsonl", ".log"]:
+        blob = mock_blob_with_name(f"test{ext}")
+        google_client._validate_file_type(blob)  # Should not raise
 
 
 @pytest.mark.parametrize(
