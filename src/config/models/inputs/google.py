@@ -20,7 +20,6 @@ class LogFeatures(BaseModel):
 
 
 class GoogleLogsConfig(BaseModel):
-    log_name: StrictStr
     log_features: LogFeatures
 
 
