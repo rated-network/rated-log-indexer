@@ -94,7 +94,7 @@ class LogEntry:
         )
 
     @classmethod
-    def from_google_object(cls, log: Dict[str, Any]) -> "LogEntry":
+    def from_google_log(cls, log: Dict[str, Any]) -> "LogEntry":
         content: Union[str, dict]
         content = log.get("content", {})
         if content and isinstance(content, dict):

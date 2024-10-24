@@ -8,7 +8,7 @@ from typing import Dict, Any, Optional, Iterator
 from pydantic import PositiveInt
 import stamina
 
-from src.config.models.inputs.google import GoogleConfig
+from src.config.models.inputs.google import GoogleConfig, StorageInputs, GoogleInputs
 from src.utils.time_conversion import from_milliseconds
 
 logger = structlog.get_logger(__name__)
@@ -16,10 +16,6 @@ logger = structlog.get_logger(__name__)
 
 class ClientType(str, Enum):
     STORAGE = "storage"
-
-
-class GoogleInputs(str, Enum):
-    OBJECTS = "objects"
 
 
 class GoogleClientError(Exception):
@@ -33,15 +29,19 @@ class GoogleClientError(Exception):
 class GoogleClient:
 
     def __init__(self, config: GoogleConfig, limit: Optional[PositiveInt] = None):
+        """Google Cloud client supporting Logs, Metrics, and Storage APIs."""
         self.config = config
-        self.storage_config = config.storage_config if config.storage_config else None
-        self.storage_client = self._get_client(ClientType.STORAGE)
-        self.bucket_name = (
-            self.storage_config.bucket_name if self.storage_config else None
+        self.input_type = self.config.config_type
+        self.storage_config = (
+            self.config.storage_config if self.config.storage_config else None
         )
-        self.prefix = self.storage_config.prefix if self.storage_config else None
-        self.log_features = (
-            self.storage_config.log_features if self.storage_config else None
+        self.logs_config = self.config.logs_config if self.config.logs_config else None
+        self.storage_client = self._get_client(ClientType.STORAGE)
+        self.call_map = {
+            GoogleInputs.OBJECTS: self.storage_client.list_blobs,
+        }
+        self.storage_input = (
+            self.storage_config.input_type if self.storage_config else None
         )
 
     def _get_credentials(self):
@@ -59,10 +59,23 @@ class GoogleClient:
         else:
             raise ValueError(f"Unsupported client type: {client_type}")
 
+    def _get_params(self, call_type: GoogleInputs) -> Dict[str, Any]:
+        params = {}
+        if call_type == GoogleInputs.OBJECTS and self.storage_config:
+            params["bucket_name"] = self.storage_config.bucket_name
+            if self.storage_config.prefix:
+                params["prefix"] = self.storage_config.prefix
+        return params
+
     @stamina.retry(on=GoogleClientError)
-    def make_api_call(self) -> Any:
+    def make_api_call(self, call_type: GoogleInputs, params: Dict[str, Any]) -> Any:
+        if call_type not in self.call_map:
+            raise ValueError(f"Unsupported call type: {call_type}")
+
+        api_call = self.call_map[call_type]
+
         try:
-            return self.storage_client.list_blobs(self.bucket_name, prefix=self.prefix)
+            return api_call(**params)
         except Exception as e:
             msg = f"Unexpected error querying GCP: {str(e)}"
             logger.error(msg, exc_info=True)
@@ -72,7 +85,12 @@ class GoogleClient:
         self, start_time: PositiveInt, end_time: PositiveInt
     ) -> Iterator[Dict[str, Any]]:
         total_rows = 0
-        blobs = self.make_api_call()
+        bucket_name = self.storage_config.bucket_name if self.storage_config else None
+        params = self._get_params(GoogleInputs.OBJECTS)
+        if not params:
+            raise ValueError("Missing required parameters for querying objects")
+
+        blobs = self.make_api_call(self.input_type, params)
         start_date = from_milliseconds(start_time)
         end_date = from_milliseconds(end_time)
 
@@ -80,28 +98,35 @@ class GoogleClient:
 
             # Check if the blob was created within the specified time range
             if start_date <= blob.time_created <= end_date:
-                try:
-                    logger.debug(f"Processing blob: {blob.name}")
-                    yield from self._process_blob_content(blob)
-                    total_rows += 1
-                except Exception as e:
-                    msg = f"Error processing blob {blob.name}: {str(e)}"
-                    logger.error(msg, exc_info=True)
-                    raise GoogleClientError(msg) from e
+                if self.storage_input == StorageInputs.LOGS:
+                    try:
+                        logger.debug(f"Processing blob: {blob.name}")
+                        yield from self._process_blob_content_for_logs(blob)
+                        total_rows += 1
+                    except Exception as e:
+                        msg = f"Error processing blob {blob.name}: {str(e)}"
+                        logger.error(msg, exc_info=True)
+                        raise GoogleClientError(msg) from e
+                else:
+                    # Extend this to support metrics in the future.
+                    msg = "Unsupported storage config type"
+                    logger.error(msg)
+                    raise GoogleClientError(msg)
 
         logger.info(
             f"Processed {total_rows} blobs from GCP Storage",
             start_time=start_time,
             end_time=end_time,
-            bucket_name=self.bucket_name if self.bucket_name else "N/A",
+            bucket_name=bucket_name,
         )
 
-    def _process_blob_content(self, blob: storage.Blob) -> Iterator[Dict[str, Any]]:
+    def _process_blob_content_for_logs(
+        self, blob: storage.Blob
+    ) -> Iterator[Dict[str, Any]]:
+        if not self.storage_config or not self.storage_config.logs_config:
+            raise ValueError("Missing required logs config")
 
-        if not self.log_features:
-            msg = "Log features not provided in the config"
-            logger.error(msg)
-            raise GoogleClientError(msg)
+        log_features = self.storage_config.logs_config.log_features
 
         row_count = 0
         stream = blob.download_as_text().splitlines()
@@ -110,13 +135,13 @@ class GoogleClient:
             try:
                 content = json.loads(line.strip())
                 try:
-                    log_id = content[self.log_features.id]
-                    timestamp = content[self.log_features.timestamp]
+                    log_id = content[log_features.id]
+                    timestamp = content[log_features.timestamp]
                 except KeyError as e:
                     error_msg = (
                         f"Missing required fields in {blob.name}, line {line_number}, object {row_count}. "
                         f"Error: {str(e)}. "
-                        f"Problematic content: {content[:200]}..."
+                        f"Problematic content: {json.dumps(content)[:200]}..."
                     )
                     logger.error(error_msg)
                     raise GoogleClientError(error_msg) from e

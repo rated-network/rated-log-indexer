@@ -52,7 +52,7 @@ def fetch_logs(
         return (LogEntry.from_datadog_log(log) for log in raw_logs)
     elif integration_type == IntegrationTypes.GOOGLE.value:
         raw_objects = client.query_objects(time_range.start_time, time_range.end_time)
-        return (LogEntry.from_google_object(obj) for obj in raw_objects)
+        return (LogEntry.from_google_log(obj) for obj in raw_objects)
     else:
         raise ValueError(f"Unsupported integration type: {integration_type}")
 
