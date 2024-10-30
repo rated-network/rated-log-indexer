@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import Callable, Iterator, Union, List, Tuple
+from typing import Callable, Iterator, Union, List, Tuple, Protocol
 
 import structlog
 from bytewax.dataflow import Dataflow, Stream
@@ -8,11 +8,7 @@ from bytewax.inputs import FixedPartitionedSource
 from bytewax.outputs import DynamicSink
 from pydantic import StrictStr
 
-from src.clients.manager import ClientManager
-from src.config.models.inputs.cloudwatch import CloudwatchConfig
-from src.config.models.inputs.datadog import DatadogConfig
-from src.clients.datadog import DatadogClient
-from src.clients.cloudwatch import CloudwatchClient
+from src.clients.manager import ClientManager, ClientTypes, ClientConfigTypes
 from src.indexers.filters.types import LogEntry, MetricEntry
 from src.indexers.filters.manager import FilterManager
 from src.config.manager import RatedIndexerYamlConfig
@@ -22,13 +18,28 @@ from src.indexers.sinks.console import build_console_sink
 from src.indexers.sinks.rated import build_http_sink
 from src.indexers.sources.rated import RatedSource, TimeRange
 
-logger = structlog.get_logger(__name__)
 
+logger = structlog.get_logger(__name__)
 
 client_manager = ClientManager()
 
 
-def get_client_instance(client_id: StrictStr) -> Union[CloudwatchClient, DatadogClient]:
+class DataFetcher(Protocol):
+    def __call__(
+        self,
+        time_range: TimeRange,
+        integration_id: StrictStr,
+        integration_type: IntegrationTypes,
+    ) -> Iterator[Union[LogEntry, MetricEntry]]: ...
+
+
+class FilterLogic(Protocol):
+    def __call__(
+        self, entry: Union[LogEntry, MetricEntry]
+    ) -> Union[LogEntry, MetricEntry, None]: ...
+
+
+def get_client_instance(client_id: StrictStr) -> ClientTypes:
     client = client_manager.get_client(client_id)
     if client is None:
         raise ValueError(f"No client found for client_id: {client_id}")
@@ -61,6 +72,9 @@ def fetch_metrics(
     elif integration_type == IntegrationTypes.DATADOG.value:
         raw_metrics = client.query_metrics(time_range.start_time, time_range.end_time)
         return (MetricEntry.from_datadog_metric(metric) for metric in raw_metrics)
+    elif integration_type == IntegrationTypes.PROMETHEUS.value:
+        raw_metrics = client.query_metrics(time_range.start_time, time_range.end_time)
+        return (MetricEntry.from_prometheus_metric(metric) for metric in raw_metrics)
     else:
         raise ValueError(f"Unsupported integration type: {integration_type}")
 
@@ -72,15 +86,15 @@ def parse_config(
         Tuple[
             IntegrationTypes,
             InputTypes,
-            Union[DatadogConfig, CloudwatchConfig],
+            ClientConfigTypes,
             FixedPartitionedSource,
-            Callable,
-            Callable,
+            DataFetcher,
+            FilterLogic,
             str,
         ]
     ],
     OutputTypes,
-    Callable[[str], DynamicSink],  # Ensure this returns a valid DynamicSink
+    Callable[[str], DynamicSink],
 ]:
     inputs = []
     slaos_key_count: defaultdict = defaultdict(int)
@@ -92,11 +106,12 @@ def parse_config(
 
         input_source = RatedSource(slaos_key=slaos_key, config_index=config_index)
 
-        client_config = (
-            input_config.cloudwatch
-            if input_config.integration == IntegrationTypes.CLOUDWATCH
-            else input_config.datadog
-        )
+        client_config = {
+            IntegrationTypes.CLOUDWATCH: input_config.cloudwatch,
+            IntegrationTypes.DATADOG: input_config.datadog,
+            IntegrationTypes.PROMETHEUS: input_config.prometheus,
+        }[input_config.integration]
+
         fetcher = fetch_logs if input_config.type == InputTypes.LOGS else fetch_metrics
         filter_manager = FilterManager(
             input_config.filters, input_config.slaos_key, input_config.type
@@ -143,10 +158,10 @@ def build_dataflow(
         Tuple[
             IntegrationTypes,
             InputTypes,
-            Union[DatadogConfig, CloudwatchConfig],
+            ClientConfigTypes,
             FixedPartitionedSource,
-            Callable,
-            Callable,
+            DataFetcher,
+            FilterLogic,
             str,
         ]
     ],
@@ -227,4 +242,5 @@ def dataflow(config: RatedIndexerYamlConfig) -> Dataflow:
         output_type,
         output_sink_builder,
     )
+
     return flow

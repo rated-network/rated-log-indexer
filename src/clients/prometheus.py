@@ -73,6 +73,11 @@ class PrometheusClientWrapper:
                 )
                 continue
 
+    def query_logs(self, start_time: int, end_time: int) -> Iterator[Dict[str, Any]]:
+        raise NotImplementedError(
+            "Querying logs is not supported by the Prometheus client"
+        )
+
     def __enter__(self):
         return self
 
