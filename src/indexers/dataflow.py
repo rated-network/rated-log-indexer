@@ -79,7 +79,7 @@ def parse_config(
         Tuple[
             IntegrationTypes,
             InputTypes,
-            Union[DatadogConfig, CloudwatchConfig],
+            Union[DatadogConfig, CloudwatchConfig, GoogleConfig],
             FixedPartitionedSource,
             Callable,
             Callable,
@@ -117,8 +117,7 @@ def parse_config(
             if input_config.type == InputTypes.LOGS
             else filter_manager.parse_and_filter_metrics
         )
-        print(f"Integration: {input_config.integration}")
-        print(f"Is GoogleConfig? {isinstance(client_config, GoogleConfig)}")
+
         inputs.append(
             (
                 input_config.integration,
@@ -155,7 +154,7 @@ def build_dataflow(
         Tuple[
             IntegrationTypes,
             InputTypes,
-            Union[DatadogConfig, CloudwatchConfig],
+            Union[DatadogConfig, CloudwatchConfig, GoogleConfig],
             FixedPartitionedSource,
             Callable,
             Callable,

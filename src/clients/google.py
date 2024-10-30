@@ -9,7 +9,12 @@ from typing import Dict, Any, Optional, Iterator, Tuple, List
 from pydantic import PositiveInt
 import stamina
 
-from src.config.models.inputs.google import GoogleConfig, StorageInputs, GoogleInputs
+from src.config.models.inputs.google import (
+    GoogleConfig,
+    StorageInputs,
+    GoogleInputs,
+    AuthMethod,
+)
 from src.utils.time_conversion import from_milliseconds
 
 logger = structlog.get_logger(__name__)
@@ -53,6 +58,10 @@ class GoogleClient:
         )
 
     def _get_credentials(self):
+
+        if self.config.auth_method == AuthMethod.DEFAULT:
+            return None
+
         credentials = service_account.Credentials.from_service_account_file(
             self.config.credentials_path,
         )

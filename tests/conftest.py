@@ -72,6 +72,73 @@ def valid_config_dict():
     }
 
 
+@pytest.fixture()
+def valid_google_config_dict():
+    return {
+        "inputs": [
+            {
+                "integration": "google",
+                "integration_prefix": "rated_example",
+                "type": "logs",
+                "google": {
+                    "project_id": "placeholder-project",
+                    "auth_method": "application_default_credentials",
+                    "config_type": "objects",
+                    "storage_config": {
+                        "bucket_name": "placeholder-bucket",
+                        "input_type": "logs",
+                        "logs_config": {
+                            "log_features": {"id": "log-uuid", "timestamp": "timestamp"}
+                        },
+                        "prefix": "bucket-prefix/",
+                    },
+                },
+                "filters": {
+                    "version": 1,
+                    "log_format": "json_dict",
+                    "log_example": {},
+                    "fields": [
+                        {
+                            "key": "customer_id",
+                            "value": "customer_example",
+                            "field_type": "string",
+                            "path": "data.customer_id",
+                        },
+                        {
+                            "key": "example_field",
+                            "value": "0",
+                            "field_type": "string",
+                            "path": "example_field",
+                        },
+                    ],
+                },
+                "offset": {
+                    "type": "postgres",
+                    "start_from": 123456789,
+                    "start_from_type": "bigint",
+                    "postgres": {
+                        "table_name": "offset_tracking",
+                        "host": "db",
+                        "port": 5432,
+                        "database": "test_db",
+                        "user": "user",
+                        "password": "password",
+                    },
+                },
+            },
+        ],
+        "output": {
+            "type": "rated",
+            "rated": {
+                "ingestion_id": "6fa9df30-3746-4f73-b730-5f717ea0d56f",
+                "ingestion_key": "ingestKEYOXVnw6deLQ5AQ",
+                "ingestion_url": "https://your_ingestion_url.com/v1/ingest",
+            },
+        },
+        "secrets": {"use_secrets_manager": False},
+    }
+
+
 @pytest.fixture
 def valid_config_yaml(valid_config_dict):
     return yaml.dump(valid_config_dict)

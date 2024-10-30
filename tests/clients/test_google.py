@@ -127,8 +127,6 @@ def test_query_objects_success(google_client, mock_blob, blob_content, expected_
 
     results = list(google_client.query_objects(start_time, end_time))
 
-    print(results)
-
     assert len(results) == expected_rows
     for result in results:
         assert "id" in result
