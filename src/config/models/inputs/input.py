@@ -1,6 +1,6 @@
 from enum import Enum
 
-from pydantic import BaseModel, model_validator, Field, StrictStr
+from pydantic import BaseModel, model_validator, StrictStr
 from typing import Optional
 
 from src.config.models.inputs.prometheus import PrometheusConfig
@@ -22,7 +22,7 @@ class InputTypes(str, Enum):
 
 
 class InputYamlConfig(BaseModel):
-    slaos_key: StrictStr = Field(default="", description="Data stream key.")
+    slaos_key: StrictStr
     integration: IntegrationTypes
     type: InputTypes
     filters: Optional[FiltersYamlConfig] = None

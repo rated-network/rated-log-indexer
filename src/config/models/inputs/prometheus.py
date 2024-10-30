@@ -7,8 +7,17 @@ from rated_exporter_sdk.providers.prometheus.types import Step  # type: ignore
 class PrometheusQueryConfig(BaseModel):
     query: StrictStr
     step: Optional[Step] = None
-    slaos_metric_name: StrictStr  # Name to use for the metric when sending to slaOS
+    slaos_metric_name: StrictStr
     organization_identifier: StrictStr
+
+    @model_validator(mode="before")
+    def verify_org_id_exists(cls, values):
+        org_id = values.get("organization_identifier")
+        if not org_id:
+            raise ValueError(
+                "Organization identifier `organization_identifier` is required for Prometheus query configuration"
+            )
+        return values
 
 
 class PrometheusAuthConfig(BaseModel):

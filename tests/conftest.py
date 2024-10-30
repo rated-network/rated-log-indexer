@@ -26,6 +26,7 @@ def valid_config_dict(postgres_container):
         "inputs": [
             {
                 "integration": "cloudwatch",
+                "slaos_key": "my-slaos-key",
                 "type": "logs",
                 "filters": {
                     "version": 1,

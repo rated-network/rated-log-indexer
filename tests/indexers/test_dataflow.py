@@ -248,6 +248,7 @@ def test_multiple_inputs_dataflow(
 ):
     config = RatedIndexerYamlConfig(**valid_config_dict)
     cloudwatch_config = InputYamlConfig(
+        slaos_key="cloudwatch_slaos_key",
         type=InputTypes.LOGS,
         integration=IntegrationTypes.CLOUDWATCH,
         cloudwatch=CloudwatchConfig(

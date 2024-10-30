@@ -1,3 +1,4 @@
+import sys
 from typing import Any, Dict, Iterator
 
 import structlog
@@ -16,7 +17,7 @@ class PrometheusClientWrapper:
     def __init__(self, config: PrometheusConfig):
         self.config = config
         self.client = PrometheusClient(
-            base_url=config.base_url,
+            base_url=str(config.base_url),
             auth=config.auth,
             timeout=config.timeout,
             max_retries=config.max_retries,
@@ -37,41 +38,51 @@ class PrometheusClientWrapper:
                     start_time=start_datetime,
                     end_time=end_datetime,
                     step=query_config.step,
-                    timeout=self.config.timeout,
+                    # TODO: fix timeout error: invalid parameter "timeout": cannot parse "1.0s" to a valid duration
+                    # timeout=float(self.config.timeout),
                 )
 
                 result = self.client.query_range(query_config.query, options)
 
                 for metric in result.metrics:
-                    # Get the organization ID from the labels using the configured identifier
                     org_id = metric.identifier.labels.get(
                         query_config.organization_identifier
                     )
                     if not org_id:
-                        logger.warning(
-                            "Organization identifier not found in metric labels",
+                        logger.error(
+                            "Organization identifier label missing from metric. Please check the configuration.",
                             metric_name=metric.identifier.name,
-                            organization_identifier=query_config.organization_identifier,
+                            metric_labels=list(metric.identifier.labels.keys()),
+                            expected_label=query_config.organization_identifier,
                         )
-                        continue
+                        sys.exit(1)
 
                     for sample in metric.samples:
+                        org_id = metric.identifier.labels.get(
+                            query_config.organization_identifier
+                        )
+                        remaining_labels = {
+                            k: v
+                            for k, v in metric.identifier.labels.items()
+                            if k != query_config.organization_identifier
+                        }
+
                         yield {
                             "organization_id": org_id,
                             "timestamp": sample.timestamp,
                             "value": sample.value,
                             "slaos_metric_name": query_config.slaos_metric_name,
-                            "labels": metric.identifier.labels,
+                            "labels": remaining_labels,
                         }
 
             except Exception as e:
                 logger.error(
                     "Failed to execute Prometheus query",
+                    exception_type=type(e).__name__,
                     query=query_config.query,
                     error=str(e),
-                    exc_info=True,
                 )
-                continue
+                raise type(e)(str(e))
 
     def query_logs(self, start_time: int, end_time: int) -> Iterator[Dict[str, Any]]:
         raise NotImplementedError(
