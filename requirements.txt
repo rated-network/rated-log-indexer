@@ -22,3 +22,4 @@ rated-parser==0.1.5
 freezegun==1.5.1
 sentry-sdk
 testcontainers==4.8.2
+rated_exporter_sdk==0.0.4

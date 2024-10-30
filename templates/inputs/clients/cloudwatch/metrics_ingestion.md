@@ -7,7 +7,7 @@ This guide explains how to configure the slaOS indexer for metrics ingestion fro
 ```yaml
 inputs:
   - integration: cloudwatch
-    integration_prefix: cloudwatch_metrics
+    slaos_key: cloudwatch_metrics
     type: metrics
     cloudwatch:
       region: us-east-1

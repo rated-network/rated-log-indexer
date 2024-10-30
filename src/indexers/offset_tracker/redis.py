@@ -8,10 +8,10 @@ from src.indexers.offset_tracker.base import OffsetTracker
 
 
 class RedisOffsetTracker(OffsetTracker):
-    def __init__(self, config: OffsetYamlConfig, integration_prefix: StrictStr):
-        super().__init__(config=config, integration_prefix=integration_prefix)
+    def __init__(self, config: OffsetYamlConfig, slaos_key: StrictStr):
+        super().__init__(config=config, slaos_key=slaos_key)
         self.config = config
-        self.integration_prefix = integration_prefix
+        self.slaos_key = slaos_key
 
         if self.config.type != "redis":
             raise ValueError(
@@ -26,7 +26,7 @@ class RedisOffsetTracker(OffsetTracker):
             db=self.config.redis.db,
         )
         self.client = RedisClient(redis_config)
-        self.key = f"{self.integration_prefix}:{cast(str, self.config.redis.key)}"
+        self.key = f"{self.slaos_key}:{cast(str, self.config.redis.key)}"
         self._override_applied = False
 
     def get_current_offset(self) -> StrictInt:

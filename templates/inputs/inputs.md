@@ -7,7 +7,7 @@ The `inputs` section defines the data sources for your indexer. It is a list of 
 ```yaml
 inputs:
   - integration: <integration_type>
-    integration_prefix: <unique_identifier>
+    slaos_key: <unique_identifier>
     type: <logs_or_metrics>
     <integration_specific_config>
     filters: <filter_config>
@@ -18,10 +18,10 @@ inputs:
 
 1. **integration**: Specifies the data source (e.g., cloudwatch, datadog). This determines which integration-specific configuration is required.
 
-2. **integration_prefix**: A unique identifier for the input. This is used to differentiate data submitted to slaOS when multiple integrations are running.
-   - Example: If `integration_prefix` is set to "prod_api_cloudwatch", a data point with key "status_code" will be submitted to slaOS as "prod_api_cloudwatch_status_code".
-   - Validation: Each `integration_prefix` must be unique across all inputs to avoid conflicts.
-   - Context: The `integration_prefix` is mandatory when using more than one integration. It prevents conflicts in data submitted to slaOS by prefixing all data points from this input with the specified prefix.
+2. **slaos_key**: A unique identifier for the input. This is used to differentiate data submitted to slaOS when multiple integrations are running.
+   - Example: If `slaos_key` is set to "prod_api_cloudwatch", a data point with key "status_code" will be submitted to slaOS as "prod_api_cloudwatch_status_code".
+   - Validation: Each `slaos_key` must be unique across all inputs to avoid conflicts.
+   - Context: The `slaos_key` is mandatory when using more than one integration. It prevents conflicts in data submitted to slaOS by prefixing all data points from this input with the specified prefix.
 
 3. **type**: Specifies "logs" or "metrics". This determines how the input data is processed and which additional configurations (like filters) are required.
 
@@ -53,7 +53,7 @@ The `output` section defines where the processed data should be sent. For detail
 
 ## Best Practices
 
-1. Use unique `integration_prefix` values for each input to avoid data conflicts.
+1. Use unique `slaos_key` values for each input to avoid data conflicts.
 2. Regularly review and update your configuration to ensure it aligns with your current monitoring needs.
 3. Use the `override_start_from` option in the offset configuration for backfills or when you need to reprocess data from a specific point.
 4. Refer to our [GitHub repository](https://github.com/rated-network/rated-log-indexer/tree/main/templates) for the latest configuration templates and examples.

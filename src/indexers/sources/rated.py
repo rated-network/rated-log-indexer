@@ -20,13 +20,13 @@ class TimeRange(BaseModel):
 
 
 class RatedPartition(StatefulSourcePartition[TimeRange, None]):
-    def __init__(self, integration_prefix: StrictStr, config_index: StrictInt) -> None:
+    def __init__(self, slaos_key: StrictStr, config_index: StrictInt) -> None:
         self._next_awake = datetime.now(timezone.utc)
 
         self.config = ConfigurationManager().load_config().inputs
 
         self.offset_tracker, self.config_start_from = get_offset_tracker(
-            integration_prefix, config_index
+            slaos_key, config_index
         )
 
         self.current_time = self._get_current_offset()
@@ -107,8 +107,8 @@ class RatedSource(FixedPartitionedSource[TimeRange, None]):
     emits a safe range to fetch
     """
 
-    def __init__(self, integration_prefix: str, config_index: int):
-        self.integration_prefix = integration_prefix
+    def __init__(self, slaos_key: str, config_index: int):
+        self.slaos_key = slaos_key
         self.config_index = config_index
 
     def list_parts(self):
@@ -116,4 +116,4 @@ class RatedSource(FixedPartitionedSource[TimeRange, None]):
 
     def build_part(self, step_id: StrictStr, for_key: StrictStr, resume_state: Any):
         assert for_key == "single-part"
-        return RatedPartition(self.integration_prefix, self.config_index)
+        return RatedPartition(self.slaos_key, self.config_index)

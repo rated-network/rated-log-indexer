@@ -30,7 +30,7 @@ def test_replace_special_characters():
         ],
     )
     filter_manager = FilterManager(
-        filter_config=filters, integration_prefix="test", input_type=InputTypes.LOGS
+        filter_config=filters, slaos_key="test", input_type=InputTypes.LOGS
     )
     assert (
         filter_manager._replace_special_characters("HelloWorld123") == "HelloWorld123"
@@ -69,7 +69,7 @@ def test_filter_manager_parsing_metrics(test_metrics):
     )
     filter_manager = FilterManager(
         filter_config=filters,
-        integration_prefix="metrics_test",
+        slaos_key="metrics_test",
         input_type=InputTypes.METRICS,
     )
 

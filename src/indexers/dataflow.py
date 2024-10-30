@@ -83,16 +83,14 @@ def parse_config(
     Callable[[str], DynamicSink],  # Ensure this returns a valid DynamicSink
 ]:
     inputs = []
-    integration_prefix_count: defaultdict = defaultdict(int)
+    slaos_key_count: defaultdict = defaultdict(int)
 
     for input_config in config.inputs:
-        integration_prefix = input_config.integration_prefix
-        config_index = integration_prefix_count[integration_prefix]
-        integration_prefix_count[integration_prefix] += 1
+        slaos_key = input_config.slaos_key
+        config_index = slaos_key_count[slaos_key]
+        slaos_key_count[slaos_key] += 1
 
-        input_source = RatedSource(
-            integration_prefix=integration_prefix, config_index=config_index
-        )
+        input_source = RatedSource(slaos_key=slaos_key, config_index=config_index)
 
         client_config = (
             input_config.cloudwatch
@@ -101,7 +99,7 @@ def parse_config(
         )
         fetcher = fetch_logs if input_config.type == InputTypes.LOGS else fetch_metrics
         filter_manager = FilterManager(
-            input_config.filters, input_config.integration_prefix, input_config.type
+            input_config.filters, input_config.slaos_key, input_config.type
         )
 
         filter_logic = (
@@ -117,7 +115,7 @@ def parse_config(
                 input_source,
                 fetcher,
                 filter_logic,
-                input_config.integration_prefix,
+                input_config.slaos_key,
             )
         )
 
@@ -168,10 +166,10 @@ def build_dataflow(
         input_source,
         fetcher,
         filter_logic,
-        integration_prefix,
+        slaos_key,
     ) in enumerate(inputs):
         logger.info(
-            f"Building stream {idx} for {integration_type} {input_type} with prefix '{integration_prefix}'"
+            f"Building stream {idx} for {integration_type} {input_type} with prefix '{slaos_key}'"
         )
 
         client_id = client_manager.add_client(integration_type, client_config)
@@ -187,7 +185,7 @@ def build_dataflow(
             def wrapped_filter(x):
                 result = f(x)
                 if result:
-                    result.integration_prefix = prefix
+                    result.slaos_key = prefix
                 return result
 
             return wrapped_filter
@@ -202,7 +200,7 @@ def build_dataflow(
             .then(
                 op.filter_map,
                 f"filter_{input_type.value}_{idx}",
-                create_filter(filter_logic, integration_prefix),
+                create_filter(filter_logic, slaos_key),
             )
         )
         output_streams.append(stream)

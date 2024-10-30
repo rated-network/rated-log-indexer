@@ -101,7 +101,7 @@ def test_logs_dataflow(
             ),
         ],
     )
-    filter_manager = FilterManager(filter_config, "integration_prefix", InputTypes.LOGS)
+    filter_manager = FilterManager(filter_config, "slaos_key", InputTypes.LOGS)
 
     mock_input = TestingSource([TimeRange(start_time=1, end_time=2)])
     inputs = [
@@ -112,14 +112,14 @@ def test_logs_dataflow(
             mock_input,
             mock_fetch_cloudwatch_logs,
             filter_manager.parse_and_filter_log,
-            "integration_prefix",
+            "slaos_key",
         )
     ]
 
     flow = build_dataflow(
         inputs,  # type: ignore
         OutputTypes.RATED,
-        lambda prefix: build_http_sink(output_config, integration_prefix=prefix),
+        lambda prefix: build_http_sink(output_config, slaos_key=prefix),
     )
 
     run_main(flow)
@@ -206,9 +206,7 @@ def test_metrics_dataflow(
     )
 
     mock_input = TestingSource([TimeRange(start_time=1, end_time=2)])
-    filter_manager = FilterManager(
-        None, "datadog_integration_prefix", InputTypes.METRICS
-    )
+    filter_manager = FilterManager(None, "datadog_slaos_key", InputTypes.METRICS)
     inputs = [
         (
             IntegrationTypes.DATADOG,
@@ -217,14 +215,14 @@ def test_metrics_dataflow(
             mock_input,
             mock_fetch_metrics,
             filter_manager.parse_and_filter_metrics,
-            "datadog_integration_prefix",
+            "datadog_slaos_key",
         )
     ]
 
     flow = build_dataflow(
         inputs,  # type: ignore
         OutputTypes.RATED,
-        lambda prefix: build_http_sink(output_config, integration_prefix=prefix),
+        lambda prefix: build_http_sink(output_config, slaos_key=prefix),
     )
 
     run_main(flow)
@@ -348,7 +346,7 @@ def test_multiple_inputs_dataflow(
     mock_input_logs2 = TestingSource([TimeRange(start_time=1, end_time=2)])
 
     filter_manager = FilterManager(
-        config.inputs[0].filters, "cloudwatch_integration_prefix", InputTypes.LOGS
+        config.inputs[0].filters, "cloudwatch_slaos_key", InputTypes.LOGS
     )
 
     inputs = [
@@ -359,7 +357,7 @@ def test_multiple_inputs_dataflow(
             mock_input_logs1,
             mock_fetch_logs,
             filter_manager.parse_and_filter_log,
-            "cloudwatch_integration_prefix",
+            "cloudwatch_slaos_key",
         ),
         (
             IntegrationTypes.CLOUDWATCH,
@@ -368,14 +366,14 @@ def test_multiple_inputs_dataflow(
             mock_input_logs2,
             mock_fetch_logs,
             filter_manager.parse_and_filter_log,
-            "cloudwatch_integration_prefix",
+            "cloudwatch_slaos_key",
         ),
     ]
 
     flow = build_dataflow(
         inputs,  # type: ignore
         OutputTypes.RATED,
-        lambda prefix: build_http_sink(output_config, integration_prefix=prefix),
+        lambda prefix: build_http_sink(output_config, slaos_key=prefix),
     )
 
     run_main(flow)
@@ -418,7 +416,7 @@ def test_metrics_logs_inputs_dataflow(
     datadog_config = InputYamlConfig(
         type=InputTypes.METRICS,
         integration=IntegrationTypes.DATADOG,
-        integration_prefix="datadog_integration_prefix",
+        slaos_key="datadog_slaos_key",
         datadog=DatadogConfig(
             api_key="your_api_key",
             app_key="your_app_key",
@@ -452,7 +450,7 @@ def test_metrics_logs_inputs_dataflow(
     cloudwatch_config = InputYamlConfig(
         type=InputTypes.LOGS,
         integration=IntegrationTypes.CLOUDWATCH,
-        integration_prefix="cloudwatch_integration_prefix",
+        slaos_key="cloudwatch_slaos_key",
         cloudwatch=CloudwatchConfig(
             aws_access_key_id="fake_access_key",
             aws_secret_access_key="fake_secret_key",
@@ -571,10 +569,10 @@ def test_metrics_logs_inputs_dataflow(
     mock_input_logs = TestingSource([TimeRange(start_time=1, end_time=2)])
 
     filter_manager_logs = FilterManager(
-        config.inputs[0].filters, "cloudwatch_integration_prefix", InputTypes.LOGS
+        config.inputs[0].filters, "cloudwatch_slaos_key", InputTypes.LOGS
     )
     filter_manager_metrics = FilterManager(
-        config.inputs[1].filters, "datadog_integration_prefix", InputTypes.METRICS
+        config.inputs[1].filters, "datadog_slaos_key", InputTypes.METRICS
     )
 
     inputs = [
@@ -585,7 +583,7 @@ def test_metrics_logs_inputs_dataflow(
             mock_input_metrics,
             mock_fetch_metrics,
             filter_manager_metrics.parse_and_filter_metrics,
-            "datadog_integration_prefix",
+            "datadog_slaos_key",
         ),
         (
             IntegrationTypes.CLOUDWATCH,
@@ -594,14 +592,14 @@ def test_metrics_logs_inputs_dataflow(
             mock_input_logs,
             mock_fetch_logs,
             filter_manager_logs.parse_and_filter_log,
-            "cloudwatch_integration_prefix",
+            "cloudwatch_slaos_key",
         ),
     ]
 
     flow = build_dataflow(
         inputs,  # type: ignore
         config.output.type,
-        lambda prefix: build_http_sink(output_config, integration_prefix=prefix),
+        lambda prefix: build_http_sink(output_config, slaos_key=prefix),
     )
 
     run_main(flow)

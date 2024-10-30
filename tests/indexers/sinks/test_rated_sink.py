@@ -52,7 +52,7 @@ def test_http_sink_batch_size(
     for i in range(100):
         event = test_events[i % len(test_events)]
         new_event = FilteredEvent(
-            integration_prefix="",
+            slaos_key="",
             organization_id=f"{event.organization_id}_{i}",
             idempotency_key=f"{event.idempotency_key}_{i}",
             event_timestamp=event.event_timestamp + timedelta(seconds=i),
@@ -84,7 +84,7 @@ def test_http_sink_mixed_scenario(
     for i in range(80):
         event = test_events[i % len(test_events)]
         new_event = FilteredEvent(
-            integration_prefix="",
+            slaos_key="",
             organization_id=f"{event.organization_id}_{i}",
             idempotency_key=f"{event.idempotency_key}_{i}",
             event_timestamp=event.event_timestamp + timedelta(seconds=i),
@@ -117,7 +117,7 @@ def test_http_sink_time_based_under_timeout(
     events_batch_1 = test_events[:3]
     events_batch_2 = [
         FilteredEvent(
-            integration_prefix="",
+            slaos_key="",
             organization_id=f"{event.organization_id}_new_{i}",
             idempotency_key=f"{event.idempotency_key}_new_{i}",
             event_timestamp=event.event_timestamp + timedelta(seconds=8),
@@ -164,7 +164,7 @@ def test_http_sink_time_based_over_timeout(
     events_batch_1 = test_events
     events_batch_2 = [
         FilteredEvent(
-            integration_prefix="",
+            slaos_key="",
             organization_id=f"{event.organization_id}_new_{i}",
             idempotency_key=f"{event.idempotency_key}_new_{i}",
             event_timestamp=event.event_timestamp + timedelta(seconds=11),
@@ -228,16 +228,14 @@ def test_http_sink_time_based_over_timeout(
 
 
 @pytest.mark.skip(reason="To be implemented")
-def test_http_sink_with_integration_prefix(
-    httpx_mock: HTTPXMock, test_events, capture_output
-):
+def test_http_sink_with_slaos_key(httpx_mock: HTTPXMock, test_events, capture_output):
     config = RatedOutputConfig(
         ingestion_id="your_ingestion_id",
         ingestion_key="your_ingestion_key",
         ingestion_url="https://your_ingestion_url.com/v1/ingest",
     )
-    integration_prefix = "test_integration"
-    http_sink = build_http_sink(config, integration_prefix)
+    slaos_key = "test_integration"
+    http_sink = build_http_sink(config, slaos_key)
 
     # Mock the HTTP response
     httpx_mock.add_response(
@@ -266,8 +264,8 @@ def test_http_sink_with_integration_prefix(
         for key in item["values"]:
 
             assert key.startswith(
-                f"{integration_prefix}_"
-            ), f"Metric {key} does not start with the integration prefix {integration_prefix}"
+                f"{slaos_key}_"
+            ), f"Metric {key} does not start with the slaOS key {slaos_key}"
 
     stdout, stderr = capture_output
     assert not stderr.getvalue(), f"Unexpected error output: {stderr.getvalue()}"

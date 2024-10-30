@@ -7,7 +7,7 @@ This guide explains how to configure the slaOS indexer for metrics ingestion fro
 ```yaml
 inputs:
   - integration: datadog
-    integration_prefix: datadog_metrics
+    slaos_key: datadog_metrics
     type: metrics
     datadog:
       site: datadoghq.com

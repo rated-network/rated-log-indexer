@@ -45,7 +45,7 @@ def mock_load_config(mock_config_data):
 
 @pytest.fixture(scope="module")
 def tracker(mock_config_data, mock_load_config):
-    return PostgresOffsetTracker(integration_prefix="test", config=mock_config_data)
+    return PostgresOffsetTracker(slaos_key="test", config=mock_config_data)
 
 
 def test_table_exists(tracker):

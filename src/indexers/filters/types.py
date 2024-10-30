@@ -122,7 +122,7 @@ class MetricEntry:
 
 @dataclass
 class FilteredEvent:
-    integration_prefix: str
+    slaos_key: str
     idempotency_key: str
     event_timestamp: datetime
     organization_id: str

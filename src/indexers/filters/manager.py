@@ -21,13 +21,13 @@ class FilterManager:
     def __init__(
         self,
         filter_config: Optional[FiltersYamlConfig],
-        integration_prefix: str,
+        slaos_key: str,
         input_type: InputTypes,
     ):
         self.log_parser = LogParser()
         self.input_type = input_type
         self.filter_config = filter_config
-        self.integration_prefix = integration_prefix
+        self.slaos_key = slaos_key
         self._initialize_parser()
 
     def _initialize_parser(self):
@@ -79,7 +79,7 @@ class FilterManager:
             }
 
             return FilteredEvent(
-                integration_prefix=self.integration_prefix,
+                slaos_key=self.slaos_key,
                 idempotency_key=log_entry.log_id,
                 event_timestamp=log_entry.event_timestamp,
                 organization_id=parsed_log.parsed_fields.get(
@@ -121,7 +121,7 @@ class FilterManager:
             )
 
             return FilteredEvent(
-                integration_prefix=self.integration_prefix,
+                slaos_key=self.slaos_key,
                 idempotency_key=idempotency_key,
                 event_timestamp=metrics_entry.event_timestamp,
                 organization_id=metrics_entry.organization_id,

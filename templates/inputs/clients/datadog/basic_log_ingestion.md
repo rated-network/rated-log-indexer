@@ -7,7 +7,7 @@ This guide explains how to configure the slaOS indexer for basic log ingestion f
 ```yaml
 inputs:
   - integration: datadog
-    integration_prefix: datadog_logs
+    slaos_key: datadog_logs
     type: logs
     datadog:
       site: datadoghq.com

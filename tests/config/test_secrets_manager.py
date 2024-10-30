@@ -25,7 +25,7 @@ def valid_config_with_secrets(valid_config_dict):
         {
             "integration": "datadog",
             "type": "logs",
-            "integration_prefix": "secret:integration_prefix_secret",
+            "slaos_key": "secret:slaos_key_secret",
             "datadog": {
                 "api_key": "secret:datadog_api_key_in_secrets_manager",
                 "app_key": "app_key_value_raw",
@@ -77,7 +77,7 @@ def mock_aws_secrets_manager():
             "app_key": "resolved_datadog_app_key",
             "dict_secret": json.dumps({"key1": "value1", "key2": "value2"}),
             "string_secret": "just_a_string",
-            "integration_prefix_secret": "resolved_integration_prefix",
+            "slaos_key_secret": "resolved_slaos_key",
         }
         mock_client.return_value.get_secret_value.side_effect = lambda SecretId: {
             "SecretString": mock_secrets[SecretId]
@@ -100,9 +100,7 @@ def test_get_config_with_secrets(valid_config_with_secrets, mock_aws_secrets_man
         assert result_config.inputs[0].integration == IntegrationTypes.DATADOG
         assert result_config.inputs[0].datadog.app_key == "app_key_value_raw"
         assert result_config.inputs[0].datadog.api_key == "resolved_datadog_api_key"
-        assert (
-            result_config.inputs[0].integration_prefix == "resolved_integration_prefix"
-        )
+        assert result_config.inputs[0].slaos_key == "resolved_slaos_key"
         assert result_config.output.rated.ingestion_key == "resolved_ingestion_key"
 
         assert not result_config.inputs[0].datadog.api_key.startswith("secret:")

@@ -23,14 +23,12 @@ def test_console_sink(test_events, capsys):
     output = captured.out + captured.err
 
     assert (
-        "Worker 0: FilteredEvent(integration_prefix='', idempotency_key='mock_log_one'"
-        in output
+        "Worker 0: FilteredEvent(slaos_key='', idempotency_key='mock_log_one'" in output
     )
     assert (
-        "Worker 0: FilteredEvent(integration_prefix='', idempotency_key='mock_log_two'"
-        in output
+        "Worker 0: FilteredEvent(slaos_key='', idempotency_key='mock_log_two'" in output
     )
     assert (
-        "Worker 0: FilteredEvent(integration_prefix='', idempotency_key='mock_log_three'"
+        "Worker 0: FilteredEvent(slaos_key='', idempotency_key='mock_log_three'"
         in output
     )

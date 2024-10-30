@@ -11,10 +11,10 @@ from src.clients.postgres import PostgresClient, PostgresConfig
 
 
 class PostgresOffsetTracker(OffsetTracker):
-    def __init__(self, config: OffsetYamlConfig, integration_prefix: StrictStr):
-        super().__init__(config=config, integration_prefix=integration_prefix)
+    def __init__(self, config: OffsetYamlConfig, slaos_key: StrictStr):
+        super().__init__(config=config, slaos_key=slaos_key)
         self.config = config
-        self.integration_prefix = integration_prefix
+        self.slaos_key = slaos_key
 
         if self.config.type != "postgres":
             raise ValueError(
@@ -49,7 +49,7 @@ class PostgresOffsetTracker(OffsetTracker):
             self.table_name,
             metadata,
             Column("id", Integer, primary_key=True),
-            Column("integration_prefix", String, unique=True),
+            Column("slaos_key", String, unique=True),
             Column("current_offset", offset_column_type),
         )
         metadata.create_all(self.client.engine)
@@ -57,12 +57,12 @@ class PostgresOffsetTracker(OffsetTracker):
         # Insert initial row if it doesn't exist
         with self.client.engine.connect() as connection:
             select_stmt = select(self.table).where(
-                self.table.c.integration_prefix == self.integration_prefix
+                self.table.c.slaos_key == self.slaos_key
             )
             result = connection.execute(select_stmt)
             if result.fetchone() is None:
                 insert_stmt = self.table.insert().values(
-                    integration_prefix=self.integration_prefix,
+                    slaos_key=self.slaos_key,
                     current_offset=self.config.start_from,
                 )
                 connection.execute(insert_stmt)
@@ -77,7 +77,7 @@ class PostgresOffsetTracker(OffsetTracker):
         # Retrieve current offset from the database
         with self.client.engine.connect() as connection:
             select_stmt = select(self.table.c.current_offset).where(
-                self.table.c.integration_prefix == self.integration_prefix
+                self.table.c.slaos_key == self.slaos_key
             )
             result = connection.execute(select_stmt)
             row = result.fetchone()
@@ -89,7 +89,7 @@ class PostgresOffsetTracker(OffsetTracker):
         with self.client.engine.connect() as connection:
             # Check if the row exists
             select_stmt = select(self.table).where(
-                self.table.c.integration_prefix == self.integration_prefix
+                self.table.c.slaos_key == self.slaos_key
             )
             result = connection.execute(select_stmt)
             existing_row = result.fetchone()
@@ -97,13 +97,13 @@ class PostgresOffsetTracker(OffsetTracker):
             if existing_row:
                 update_stmt = (
                     update(self.table)
-                    .where(self.table.c.integration_prefix == self.integration_prefix)
+                    .where(self.table.c.slaos_key == self.slaos_key)
                     .values(current_offset=offset)
                 )
                 connection.execute(update_stmt)
             else:
                 insert_stmt = self.table.insert().values(
-                    integration_prefix=self.integration_prefix, current_offset=offset
+                    slaos_key=self.slaos_key, current_offset=offset
                 )
                 connection.execute(insert_stmt)
 

@@ -7,8 +7,8 @@ from src.config.models.offset import OffsetYamlConfig
 
 
 class OffsetTracker(ABC):
-    def __init__(self, config: OffsetYamlConfig, integration_prefix: StrictStr):
-        self.integration_prefix = integration_prefix
+    def __init__(self, config: OffsetYamlConfig, slaos_key: StrictStr):
+        self.slaos_key = slaos_key
         self.config = config
 
     @abstractmethod
