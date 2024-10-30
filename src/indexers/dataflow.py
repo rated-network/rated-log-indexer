@@ -106,11 +106,9 @@ def parse_config(
 
         input_source = RatedSource(slaos_key=slaos_key, config_index=config_index)
 
-        client_config = {
-            IntegrationTypes.CLOUDWATCH: input_config.cloudwatch,
-            IntegrationTypes.DATADOG: input_config.datadog,
-            IntegrationTypes.PROMETHEUS: input_config.prometheus,
-        }[input_config.integration]
+        client_config: ClientConfigTypes = getattr(
+            input_config, input_config.integration.value.lower()
+        )
 
         fetcher = fetch_logs if input_config.type == InputTypes.LOGS else fetch_metrics
         filter_manager = FilterManager(
