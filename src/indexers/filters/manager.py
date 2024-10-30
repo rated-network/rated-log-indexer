@@ -71,6 +71,11 @@ class FilterManager:
             )
             fields = parsed_log.parsed_fields
             if not fields or not fields.get("organization_id"):
+                logger.warning(
+                    "Organization ID is missing, please update the filter logic to include `organization_id`",
+                    parsed_fields=parsed_log.parsed_fields,
+                    log_content=log_entry.content,
+                )
                 return None
 
             validated_fields = {
@@ -82,9 +87,7 @@ class FilterManager:
                 slaos_key=self.slaos_key,
                 idempotency_key=log_entry.log_id,
                 event_timestamp=log_entry.event_timestamp,
-                organization_id=parsed_log.parsed_fields.get(
-                    "organization_id", "MISSING_organization_id"
-                ),
+                organization_id=parsed_log.parsed_fields.get("organization_id"),
                 values=validated_fields,
             )
 
