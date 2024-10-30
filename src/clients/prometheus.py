@@ -18,7 +18,7 @@ class PrometheusClientWrapper:
         self.client = PrometheusClient(
             base_url=config.base_url,
             auth=config.auth,
-            timeout=config.timeout or 15.0,
+            timeout=config.timeout,
             max_retries=config.max_retries,
             retry_backoff_factor=config.retry_backoff_factor,
             pool_connections=config.pool_connections,
@@ -60,7 +60,7 @@ class PrometheusClientWrapper:
                             "organization_id": org_id,
                             "timestamp": sample.timestamp,
                             "value": sample.value,
-                            "label": query_config.slaos_metric_name,
+                            "slaos_metric_name": query_config.slaos_metric_name,
                             "labels": metric.identifier.labels,
                         }
 

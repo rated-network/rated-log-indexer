@@ -53,7 +53,7 @@ class PrometheusConfig(BaseModel):
     auth: Optional[PrometheusAuthConfig] = None
     queries: List[PrometheusQueryConfig]
 
-    timeout: Optional[float] = None
+    timeout: Optional[float] = 15.0
     pool_connections: Optional[PositiveInt] = 10
     pool_maxsize: Optional[PositiveInt] = 10
     max_parallel_queries: Optional[PositiveInt] = 5
