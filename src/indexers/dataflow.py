@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import Callable, Iterator, Union, List, Tuple
+from typing import Callable, Iterator, List, Tuple
 
 import structlog
 from bytewax.dataflow import Dataflow, Stream
@@ -8,11 +8,7 @@ from bytewax.inputs import FixedPartitionedSource
 from bytewax.outputs import DynamicSink
 from pydantic import StrictStr
 
-from src.clients.manager import ClientManager
-from src.config.models.inputs.cloudwatch import CloudwatchConfig
-from src.config.models.inputs.datadog import DatadogConfig
-from src.clients.datadog import DatadogClient
-from src.clients.cloudwatch import CloudwatchClient
+from src.clients.manager import ClientManager, ClientType, ConfigType
 from src.indexers.filters.types import LogEntry, MetricEntry
 from src.indexers.filters.manager import FilterManager
 from src.config.manager import RatedIndexerYamlConfig
@@ -28,7 +24,7 @@ logger = structlog.get_logger(__name__)
 client_manager = ClientManager()
 
 
-def get_client_instance(client_id: StrictStr) -> Union[CloudwatchClient, DatadogClient]:
+def get_client_instance(client_id: StrictStr) -> ClientType:
     client = client_manager.get_client(client_id)
     if client is None:
         raise ValueError(f"No client found for client_id: {client_id}")
@@ -46,6 +42,10 @@ def fetch_logs(
     elif integration_type == IntegrationTypes.DATADOG.value:
         raw_logs = client.query_logs(time_range.start_time, time_range.end_time)
         return (LogEntry.from_datadog_log(log) for log in raw_logs)
+    elif integration_type == IntegrationTypes.SQL.value:
+        raise NotImplementedError(
+            "SQL logs are not supported. Use `metrics` flag instead."
+        )
     else:
         raise ValueError(f"Unsupported integration type: {integration_type}")
 
@@ -61,6 +61,8 @@ def fetch_metrics(
     elif integration_type == IntegrationTypes.DATADOG.value:
         raw_metrics = client.query_metrics(time_range.start_time, time_range.end_time)
         return (MetricEntry.from_datadog_metric(metric) for metric in raw_metrics)
+    elif integration_type == IntegrationTypes.SQL.value:
+        raise NotImplementedError("SQL metrics are not yet supported")
     else:
         raise ValueError(f"Unsupported integration type: {integration_type}")
 
@@ -72,7 +74,7 @@ def parse_config(
         Tuple[
             IntegrationTypes,
             InputTypes,
-            Union[DatadogConfig, CloudwatchConfig],
+            ConfigType,
             FixedPartitionedSource,
             Callable,
             Callable,
@@ -145,7 +147,7 @@ def build_dataflow(
         Tuple[
             IntegrationTypes,
             InputTypes,
-            Union[DatadogConfig, CloudwatchConfig],
+            ConfigType,
             FixedPartitionedSource,
             Callable,
             Callable,

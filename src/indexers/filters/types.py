@@ -3,7 +3,7 @@ import hashlib
 import json
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Dict, Any, Union
+from typing import Dict, Any, Union, List
 
 from src.utils.time_conversion import from_milliseconds
 
@@ -119,6 +119,22 @@ class MetricEntry:
             organization_id=metric["organization_id"],
             event_timestamp=from_milliseconds(metric["timestamp"]),
         )
+
+    @classmethod
+    def from_sql_metric(cls, metric: Dict[str, Any]) -> List["MetricEntry"]:
+        # TODO: Check if datetime conversion is necessary ! Take into account ts type
+        customer_id = metric["customer_id"]
+        timestamp = datetime.fromtimestamp(metric["timestamp"] / 1000)
+
+        return [
+            cls(
+                metric_name=metric_name,
+                value=value,
+                customer_id=customer_id,
+                event_timestamp=timestamp,
+            )
+            for metric_name, value in metric["values"].items()
+        ]
 
 
 @dataclass
