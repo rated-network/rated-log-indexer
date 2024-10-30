@@ -13,6 +13,7 @@ from src.indexers.filters.types import (
     MetricEntry,
     generate_idempotency_key,
 )
+from src.utils.type_conversion import parse_latency
 
 logger = structlog.getLogger(__name__)
 
@@ -75,6 +76,10 @@ class FilterManager:
                 self._replace_special_characters(k): v
                 for k, v in parsed_log.parsed_fields.items()
             }
+
+            # TODO: Replace with a comprehensive approach to handle latency parsing in the log_parser
+            if "latency" in validated_fields:
+                validated_fields["latency"] = parse_latency(validated_fields["latency"])
 
             return FilteredEvent(
                 integration_prefix=self.integration_prefix,

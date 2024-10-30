@@ -4,6 +4,7 @@ import json
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Dict, Any, Union
+from dateutil import parser  # type: ignore
 
 from src.utils.time_conversion import from_milliseconds
 
@@ -88,6 +89,44 @@ class LogEntry:
                 "service": log_attributes.get("service", ""),
                 "status": log_attributes.get("status", ""),
                 "tags": log_attributes.get("tags", []),
+            },
+            event_timestamp=event_timestamp,
+        )
+
+    @classmethod
+    def from_google_log(cls, log: Dict[str, Any]) -> "LogEntry":
+        content: Union[str, dict]
+        content = log.get("content", {})
+        if content and isinstance(content, dict):
+            is_json = True
+        else:
+            is_json = False
+
+        timestamp = log.get("timestamp")
+
+        if timestamp is None:
+            msg = f"Timestamp is missing in the log object: {log}"
+            logger.error(msg)
+            raise ValueError(msg)
+
+        if not isinstance(timestamp, str):
+            msg = f"Timestamp is not a string: {timestamp}"
+            logger.error(msg)
+            raise TypeError(msg)
+
+        try:
+            event_timestamp = parser.isoparse(timestamp)
+        except (ValueError, OverflowError) as e:
+            msg = f"Invalid timestamp format: {timestamp}"
+            logger.error(msg, exc_info=True)
+            raise ValueError(msg) from e
+
+        return cls(
+            log_id=log["id"],
+            content=content,
+            is_json=is_json,
+            metadata={
+                "blob": log.get("_blob_name"),
             },
             event_timestamp=event_timestamp,
         )

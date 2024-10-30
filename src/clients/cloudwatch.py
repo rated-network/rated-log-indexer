@@ -286,3 +286,8 @@ class CloudwatchClient:
                     msg = "Failed to query Cloudwatch metrics"
                     logger.error(msg, exc_info=True)
                     raise CloudwatchClientError(msg) from e
+
+    def query_objects(
+        self, start_time: PositiveInt, end_time: PositiveInt
+    ) -> Iterator[Dict[str, Any]]:
+        raise NotImplementedError("Querying objects is not supported for Cloudwatch")
