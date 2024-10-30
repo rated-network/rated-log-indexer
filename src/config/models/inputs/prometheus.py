@@ -1,6 +1,6 @@
 from typing import Optional, List
-from pydantic import BaseModel, StrictStr, PositiveInt, model_validator
-from pydantic.v1 import HttpUrl
+from pydantic import BaseModel, StrictStr, PositiveInt, model_validator, HttpUrl
+
 from rated_exporter_sdk.providers.prometheus.types import Step  # type: ignore
 
 
@@ -9,7 +9,6 @@ class PrometheusQueryConfig(BaseModel):
     step: Optional[Step] = None
     slaos_metric_name: StrictStr  # Name to use for the metric when sending to slaOS
     organization_identifier: StrictStr
-    timeout: Optional[float] = None
 
 
 class PrometheusAuthConfig(BaseModel):
@@ -54,6 +53,7 @@ class PrometheusConfig(BaseModel):
     auth: Optional[PrometheusAuthConfig] = None
     queries: List[PrometheusQueryConfig]
 
+    timeout: Optional[float] = None
     pool_connections: Optional[PositiveInt] = 10
     pool_maxsize: Optional[PositiveInt] = 10
     max_parallel_queries: Optional[PositiveInt] = 5
