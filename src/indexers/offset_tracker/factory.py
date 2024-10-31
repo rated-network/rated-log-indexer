@@ -4,6 +4,7 @@ from collections import defaultdict
 from src.config.manager import ConfigurationManager
 from src.indexers.offset_tracker.base import OffsetTracker
 from src.indexers.offset_tracker.postgres import PostgresOffsetTracker
+from src.indexers.offset_tracker.rated import RatedAPIOffsetTracker
 from src.indexers.offset_tracker.redis import RedisOffsetTracker
 
 
@@ -80,6 +81,11 @@ def get_offset_tracker(
     elif offset_config.type == "redis":
         return (
             RedisOffsetTracker(offset_config, final_integration_prefix),
+            offset_config.start_from,
+        )
+    elif offset_config.type == "slaos":
+        return (
+            RatedAPIOffsetTracker(offset_config, final_integration_prefix),
             offset_config.start_from,
         )
     else:

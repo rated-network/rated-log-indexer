@@ -1,10 +1,12 @@
 from copy import deepcopy
+from datetime import UTC, datetime
 
-from src.indexers.offset_tracker.factory import get_offset_tracker
 import pytest
 from unittest.mock import patch
 from src.config.manager import ConfigurationManager, RatedIndexerYamlConfig
+from src.indexers.offset_tracker.factory import get_offset_tracker
 from src.indexers.offset_tracker.postgres import PostgresOffsetTracker
+from src.indexers.offset_tracker.rated import RatedAPIOffsetTracker
 from src.indexers.offset_tracker.redis import RedisOffsetTracker
 
 
@@ -35,11 +37,26 @@ def test_get_offset_tracker_with_duplicates(mock_load_config, valid_config_dict)
         "port": 6379,
         "db": 0,
     }
+    config_dict["inputs"].append(deepcopy(config_dict["inputs"][0]))
+    config_dict["inputs"][2]["offset"]["type"] = "slaos"
+    config_dict["inputs"][2]["offset"]["start_from"] = 1719788400000
+    config_dict["inputs"][2]["offset"]["slaos"] = {
+        "ingestion_id": "some-uuid",
+        "ingestion_key": "secret-key",
+        "ingestion_url": "http://localhost:8000/v1/ingest",
+        "datastream_key": "datastream-key",
+    }
     config = RatedIndexerYamlConfig(**config_dict)
     mock_load_config.return_value = config
 
     tracker1, start_from1 = get_offset_tracker("prefix1")
     tracker2, start_from2 = get_offset_tracker("prefix1")
+    with patch.object(
+        RatedAPIOffsetTracker,
+        "get_offset_from_api",
+        return_value=datetime(2024, 10, 1, tzinfo=UTC),
+    ):
+        tracker3, start_from3 = get_offset_tracker("prefix1")
 
     assert isinstance(tracker1, PostgresOffsetTracker)
     assert tracker1.integration_prefix == "prefix1_0"
@@ -48,6 +65,10 @@ def test_get_offset_tracker_with_duplicates(mock_load_config, valid_config_dict)
     assert isinstance(tracker2, RedisOffsetTracker)
     assert tracker2.integration_prefix == "prefix1_1"
     assert start_from2 == 987654321
+
+    assert isinstance(tracker3, RatedAPIOffsetTracker)
+    assert tracker3.integration_prefix == "prefix1_2"
+    assert start_from3 == 1719788400000
 
 
 @patch.object(ConfigurationManager, "load_config")
