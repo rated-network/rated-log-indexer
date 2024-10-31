@@ -31,11 +31,13 @@ class FilterManager:
         self._initialize_parser()
 
     def _initialize_parser(self):
-        if self.input_type == InputTypes.METRICS:
-            """No need to add pattern for metrics"""
+        if self.input_type == InputTypes.METRICS and not self.filter_config:
+            """Parser is optional for Metrics input type"""
             return
-        if not self.filter_config:
+
+        if self.input_type == InputTypes.LOGS and not self.filter_config:
             raise ValueError("FiltersYamlConfig is required for logs input type")
+
         pattern = {
             "version": self.filter_config.version,
             "log_format": self.filter_config.log_format,
@@ -97,6 +99,21 @@ class FilterManager:
         Returns parsed fields dictionary from the metrics entry if the metrics entry is successfully parsed and filtered.
         """
         try:
+            validated_fields = {}
+            if metrics_entry.labels:
+                parsed_metric = self.log_parser.parse_log(
+                    metrics_entry.labels, version=self.filter_config.version  # type: ignore
+                )
+                fields = parsed_metric.parsed_fields
+
+                if not fields or not fields.get("organization_id"):
+                    return None
+
+                validated_fields = {
+                    self._replace_special_characters(k): v
+                    for k, v in parsed_metric.parsed_fields.items()
+                }
+
             idempotency_key = generate_idempotency_key(
                 event_timestamp=metrics_entry.event_timestamp,
                 organization_id=metrics_entry.organization_id,
@@ -111,7 +128,8 @@ class FilterManager:
                 values={
                     self._replace_special_characters(
                         metrics_entry.metric_name
-                    ): metrics_entry.value
+                    ): metrics_entry.value,
+                    **validated_fields,
                 },
             )
 

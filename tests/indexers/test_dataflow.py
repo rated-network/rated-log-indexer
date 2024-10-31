@@ -55,12 +55,12 @@ def test_logs_dataflow(
         {
             "eventId": "mock_log_one",
             "timestamp": 1723041096000,
-            "message": '{"example_key": "example_value_one", "data": {"organization_id": "customer_one"}}',
+            "message": '{"example_key": "example_value_one", "secret_key": 1, "data": {"organization_id": "customer_one"}}',
         },
         {
             "eventId": "mock_log_two",
             "timestamp": 1723041096100,
-            "message": '{"example_key": "example_value_two", "data": {"organization_id": "customer_two"}}',
+            "message": '{"example_key": "example_value_two", "secret_key": 2, "data": {"organization_id": "customer_two"}}',
         },
     ]
     sample_log_entries = [LogEntry.from_cloudwatch_log(log) for log in sample_logs]
@@ -90,6 +90,12 @@ def test_logs_dataflow(
                 key="organization_id",
                 field_type=FieldType.STRING,
                 path="data.organization_id",
+            ),
+            JsonFieldDefinition(
+                key="secret_key",
+                field_type=FieldType.INTEGER,
+                path="secret_key",
+                hash=True,
             ),
         ],
     )
@@ -123,6 +129,11 @@ def test_logs_dataflow(
     request = requests[0]
     body = json.loads(request.content)
     assert len(body) == 2, "2 events should have been batched"
+
+    for data in body:
+        hashed_secret_key = data["values"]["secret_key"]
+        assert isinstance(hashed_secret_key, str)
+        assert len(hashed_secret_key) == 64, "Hashed secret_key should be 64 characters"
 
 
 @patch("src.indexers.dataflow.fetch_metrics")
@@ -477,7 +488,10 @@ def test_metrics_logs_inputs_dataflow(
                     key="success", field_type=FieldType.STRING, path="success"
                 ),
                 JsonFieldDefinition(
-                    key="duration_ms", field_type=FieldType.INTEGER, path="duration_ms"
+                    key="duration_ms",
+                    field_type=FieldType.INTEGER,
+                    path="duration_ms",
+                    hash=True,
                 ),
             ],
         ),
@@ -606,3 +620,8 @@ def test_metrics_logs_inputs_dataflow(
         assert isinstance(
             item["values"], dict
         ), f"'values' is not a dictionary in {item}"
+
+        if "duration_ms" in item["values"]:
+            assert (
+                len(item["values"]["duration_ms"]) == 64
+            ), "Hashed duration_ms should be 64 characters"

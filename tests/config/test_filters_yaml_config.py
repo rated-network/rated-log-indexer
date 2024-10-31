@@ -63,6 +63,7 @@ class TestFiltersConfig:
                     "value": "testing_value",
                     "field_type": "string",
                     "path": "payload.testing_key",
+                    "hash": True,
                 },
                 {
                     "key": "organization_id",

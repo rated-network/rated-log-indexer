@@ -3,7 +3,7 @@ import hashlib
 import json
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Dict, Any, Union
+from typing import Dict, Any, Union, Optional
 
 from src.utils.time_conversion import from_milliseconds
 
@@ -99,6 +99,7 @@ class MetricEntry:
     value: float
     organization_id: str
     event_timestamp: datetime
+    labels: Optional[Dict[str, Any]] = None
 
     @classmethod
     def from_cloudwatch_metric(cls, metric: Dict[str, Any]) -> "MetricEntry":
@@ -106,9 +107,7 @@ class MetricEntry:
             metric_name=metric["label"],
             value=metric["value"],
             organization_id=metric["organization_id"],
-            event_timestamp=metric[
-                "timestamp"
-            ],  # TODO: Check if datetime conversion is necessary
+            event_timestamp=metric["timestamp"],
         )
 
     @classmethod
