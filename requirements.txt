@@ -18,6 +18,6 @@ types-redis==4.6.0.20240726
 PyYAML==6.0.1
 botocore==1.34.147
 datadog-api-client==2.26.0
-rated-parser==0.1.2
+rated-parser==0.1.5
 freezegun==1.5.1
 sentry-sdk
