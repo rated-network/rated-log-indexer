@@ -57,9 +57,10 @@ class FilterManager:
     @staticmethod
     def _replace_special_characters(input_string: str) -> str:
         """
-        Replace all special characters in the input string with underscores.
+        Replace all special characters in the input string with underscores,
+        except for forward slashes (/).
         """
-        return re.sub(r"\W", "_", input_string, flags=re.UNICODE)
+        return re.sub(r"[^\w/]", "_", input_string, flags=re.UNICODE)
 
     def parse_and_filter_log(self, log_entry: LogEntry) -> Optional[FilteredEvent]:
         """

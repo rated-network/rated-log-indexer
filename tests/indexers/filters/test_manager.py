@@ -45,6 +45,7 @@ def test_replace_special_characters():
     )
     assert filter_manager._replace_special_characters("H@ello123!!") == "H_ello123__"
     assert filter_manager._replace_special_characters("Hello😊") == "Hello_"
+    assert filter_manager._replace_special_characters("api/path") == "api/path"
 
 
 def test_filter_manager_parsing_metrics(test_metrics):
