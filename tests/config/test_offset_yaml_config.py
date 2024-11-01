@@ -49,14 +49,14 @@ def test_get_offset_tracker_with_duplicates(mock_load_config, valid_config_dict)
     config = RatedIndexerYamlConfig(**config_dict)
     mock_load_config.return_value = config
 
-    tracker1, start_from1 = get_offset_tracker("prefix1")
-    tracker2, start_from2 = get_offset_tracker("prefix1")
+    tracker1, start_from1 = get_offset_tracker("prefix1", 0)
+    tracker2, start_from2 = get_offset_tracker("prefix1", 1)
     with patch.object(
         RatedAPIOffsetTracker,
         "get_offset_from_api",
         return_value=datetime(2024, 10, 1, tzinfo=UTC),
     ):
-        tracker3, start_from3 = get_offset_tracker("prefix1")
+        tracker3, start_from3 = get_offset_tracker("prefix1", 2)
 
     assert isinstance(tracker1, PostgresOffsetTracker)
     assert tracker1.integration_prefix == "prefix1_0"
@@ -102,7 +102,7 @@ def test_get_offset_tracker_multiple_calls_same_prefix(
     config = RatedIndexerYamlConfig(**config_dict)
     mock_load_config.return_value = config
 
-    results = [get_offset_tracker("prefix1") for _ in range(3)]
+    results = [get_offset_tracker("prefix1", i) for i in range(2)]
 
     assert isinstance(results[0][0], PostgresOffsetTracker)
     assert results[0][0].integration_prefix == "prefix1_0"
@@ -112,9 +112,8 @@ def test_get_offset_tracker_multiple_calls_same_prefix(
     assert results[1][0].integration_prefix == "prefix1_1"
     assert results[1][1] == 987654321
 
-    assert isinstance(results[2][0], PostgresOffsetTracker)
-    assert results[2][0].integration_prefix == "prefix1_0"
-    assert results[2][1] == 123456789
+    with pytest.raises(ValueError):
+        get_offset_tracker("prefix1", 2)
 
 
 @patch.object(ConfigurationManager, "load_config")
