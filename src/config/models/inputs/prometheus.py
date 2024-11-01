@@ -1,23 +1,59 @@
-from typing import Optional, List
-from pydantic import BaseModel, StrictStr, PositiveInt, model_validator, HttpUrl
+from typing import Optional, List, ClassVar
+
+import structlog
+from pydantic import (
+    BaseModel,
+    StrictStr,
+    PositiveInt,
+    model_validator,
+    HttpUrl,
+    PositiveFloat,
+)
 
 from rated_exporter_sdk.providers.prometheus.types import Step  # type: ignore
+
+logger = structlog.getLogger(__name__)
 
 
 class PrometheusQueryConfig(BaseModel):
     query: StrictStr
     step: Optional[Step] = None
     slaos_metric_name: StrictStr
-    organization_identifier: StrictStr
+    organization_identifier: Optional[StrictStr] = None
+    fallback_org_id: Optional[StrictStr] = None
+
+    _warning_logged: ClassVar[bool] = False
 
     @model_validator(mode="before")
-    def verify_org_id_exists(cls, values):
-        org_id = values.get("organization_identifier")
-        if not org_id:
-            raise ValueError(
-                "Organization identifier `organization_identifier` is required for Prometheus query configuration"
-            )
+    def convert_empty_to_none(cls, values):
+        """Convert empty or whitespace-only strings to None for optional string fields"""
+        for field in ["organization_identifier", "fallback_org_id"]:
+            if field in values and isinstance(values[field], str):
+                stripped_value = values[field].strip()
+                if not stripped_value:
+                    values[field] = None
+                else:
+                    values[field] = stripped_value
         return values
+
+    @model_validator(mode="after")
+    def validate_org_id_fallback(self) -> "PrometheusQueryConfig":
+        if self.organization_identifier is None:
+            if self.fallback_org_id is None:
+                raise ValueError(
+                    "`fallback_org_id` must be provided when `organization_identifier` is not set"
+                )
+
+            if not self.__class__._warning_logged:
+                logger.warning(
+                    "Organization identifier not provided, fallback value will be used",
+                    organization_identifier=self.fallback_org_id,
+                    fallback_org_id=self.fallback_org_id,
+                    query=self.query,
+                )
+                self.__class__._warning_logged = True
+
+        return self
 
 
 class PrometheusAuthConfig(BaseModel):
@@ -62,11 +98,11 @@ class PrometheusConfig(BaseModel):
     auth: Optional[PrometheusAuthConfig] = None
     queries: List[PrometheusQueryConfig]
 
-    timeout: Optional[float] = 15.0
+    timeout: Optional[PositiveFloat] = 15.0
     pool_connections: Optional[PositiveInt] = 10
     pool_maxsize: Optional[PositiveInt] = 10
     max_parallel_queries: Optional[PositiveInt] = 5
-    retry_backoff_factor: Optional[float] = 0.1
+    retry_backoff_factor: Optional[PositiveFloat] = 0.1
     max_retries: Optional[PositiveInt] = 3
 
     @model_validator(mode="after")

@@ -46,7 +46,8 @@ class PrometheusClientWrapper:
 
                 for metric in result.metrics:
                     org_id = metric.identifier.labels.get(
-                        query_config.organization_identifier
+                        query_config.organization_identifier,
+                        query_config.fallback_org_id,
                     )
                     if not org_id:
                         logger.error(
