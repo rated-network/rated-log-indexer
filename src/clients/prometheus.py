@@ -43,6 +43,7 @@ class PrometheusClientWrapper:
                 )
 
                 result = self.client.query_range(query_config.query, options)
+                print(result)
 
                 for metric in result.metrics:
                     org_id = metric.identifier.labels.get(
@@ -51,23 +52,21 @@ class PrometheusClientWrapper:
                     )
                     if not org_id:
                         logger.error(
-                            "Organization identifier label missing from metric. Please check the configuration.",
-                            metric_name=metric.identifier.name,
+                            "Organization identifier label missing from metric and no `fallback_org_id` provided. Please check the configuration.",
+                            query=query_config.query,
                             metric_labels=list(metric.identifier.labels.keys()),
                             expected_label=query_config.organization_identifier,
+                            fallback_org_id=query_config.fallback_org_id,
                         )
                         sys.exit(1)
 
-                    for sample in metric.samples:
-                        org_id = metric.identifier.labels.get(
-                            query_config.organization_identifier
-                        )
-                        remaining_labels = {
-                            k: v
-                            for k, v in metric.identifier.labels.items()
-                            if k != query_config.organization_identifier
-                        }
+                    remaining_labels = {
+                        k: v
+                        for k, v in metric.identifier.labels.items()
+                        if k != query_config.organization_identifier
+                    }
 
+                    for sample in metric.samples:
                         yield {
                             "organization_id": org_id,
                             "timestamp": sample.timestamp,

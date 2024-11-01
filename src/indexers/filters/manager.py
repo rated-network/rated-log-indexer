@@ -93,7 +93,9 @@ class FilterManager:
             )
 
         except Exception as e:
-            logger.error("Parsing error", log_content=log_entry.content, error=str(e))
+            logger.error(
+                "Log parsing error", log_content=log_entry.content, error=str(e)
+            )
             return None
 
     def parse_and_filter_metrics(
@@ -103,25 +105,20 @@ class FilterManager:
         Returns parsed fields dictionary from the metrics entry if the metrics entry is successfully parsed and filtered.
         """
         try:
-            validated_fields = {}
+            values = {metrics_entry.metric_name: metrics_entry.value}
+
             if metrics_entry.labels:
-                parsed_metric = self.log_parser.parse_log(
-                    metrics_entry.labels, version=self.filter_config.version  # type: ignore
-                )
-                fields = parsed_metric.parsed_fields
-
-                if not fields or not fields.get("organization_id"):
-                    return None
-
-                validated_fields = {
+                cleaned_labels = {
                     self._replace_special_characters(k): v
-                    for k, v in parsed_metric.parsed_fields.items()
+                    for k, v in metrics_entry.labels.items()
                 }
+                if cleaned_labels:
+                    values = {**values, **cleaned_labels}
 
             idempotency_key = generate_idempotency_key(
                 event_timestamp=metrics_entry.event_timestamp,
                 organization_id=metrics_entry.organization_id,
-                values={metrics_entry.metric_name: metrics_entry.value},
+                values=values,
             )
 
             return FilteredEvent(
@@ -129,14 +126,11 @@ class FilterManager:
                 idempotency_key=idempotency_key,
                 event_timestamp=metrics_entry.event_timestamp,
                 organization_id=metrics_entry.organization_id,
-                values={
-                    self._replace_special_characters(
-                        metrics_entry.metric_name
-                    ): metrics_entry.value,
-                    **validated_fields,
-                },
+                values=values,
             )
 
         except Exception as e:
-            logger.error("Parsing error", metric_content=metrics_entry, error=str(e))
+            logger.error(
+                "Metric parsing error", metric_content=metrics_entry, error=str(e)
+            )
             return None
