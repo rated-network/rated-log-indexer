@@ -1,6 +1,7 @@
 import json
 import time
-import subprocess
+from typing import Tuple
+
 from bytewax.testing import run_main, TestingSource
 from pydantic_core import Url
 from pytest_httpx import HTTPXMock
@@ -23,8 +24,8 @@ from src.indexers.sinks.rated import build_http_sink
 class TestPrometheusDataflow:
     def test_prometheus_dataflow_integration(
         self,
-        fake_app_process: subprocess.Popen,
-        prometheus_process: subprocess.Popen,
+        fake_app: Tuple[str, int],
+        prometheus: str,
         input_config: InputYamlConfig,
         output_config: RatedOutputConfig,
         httpx_mock: HTTPXMock,
@@ -98,14 +99,12 @@ class TestPrometheusDataflow:
                     "test_endpoint_latency_rate",
                 ], "Unexpected metric name"
 
-                if "labels" in values:
-                    labels = values["labels"]
-                    assert "endpoint" in labels, "All metrics should have endpoint"
-                    assert labels["endpoint"] in ["/api/test1", "/api/test2"]
+                assert "endpoint" in values, "All metrics should have endpoint"
+                assert values["endpoint"] in ["/api/test1", "/api/test2"]
 
-                    if metric_name == "test_requests":
-                        assert "region" in labels, "test_requests should have region"
-                        assert labels["region"] in ["us-east1", "us-west1"]
+                if metric_name == "test_requests":
+                    assert "region" in values, "test_requests should have region"
+                    assert values["region"] in ["us-east1", "us-west1"]
 
                 value = next(iter(values.values()))
                 assert isinstance(value, (int, float)), "Values should be numeric"

@@ -25,3 +25,6 @@ testcontainers==4.8.2
 rated_exporter_sdk==0.0.4
 requests>=2.31.0,<2.32.0
 responses==0.25.3
+docker>=6.1.0
+types-requests==2.31.0.5
+types-docker==7.0.0.20240413

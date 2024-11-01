@@ -106,7 +106,7 @@ class FilterManager:
         """
         try:
             values = {metrics_entry.metric_name: metrics_entry.value}
-
+            self.log_parser.encryption_key = metrics_entry.organization_id
             if metrics_entry.labels:
                 cleaned_labels = {
                     self._replace_special_characters(k): v

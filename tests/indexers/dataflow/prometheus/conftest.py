@@ -1,10 +1,18 @@
 import json
+import shutil
+import socket
 import time
-import subprocess
-from typing import Generator
+from pathlib import Path
+from typing import Generator, Tuple
+
+import docker
+import requests
 import responses
 import re
 import pytest
+from docker.errors import NotFound, BuildError
+from docker.models.networks import Network
+from docker.types import Mount
 from pydantic_core import Url
 from pytest_httpx import HTTPXMock
 
@@ -27,6 +35,163 @@ from src.config.models.output import (
     RatedOutputConfig,
 )
 
+PROMETHEUS_CONTAINER_NAME = "test_prometheus"
+METRICS_GENERATOR_APP_CONTAINER_NAME = "test_fake_app"
+SHARED_NETWORK = "test_prometheus_network"
+
+
+def is_port_in_use(port: int, host: str = "localhost") -> bool:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        return s.connect_ex((host, port)) == 0
+
+
+def wait_for_http_service(url: str, timeout: int = 30) -> bool:
+    start_time = time.time()
+    while time.time() - start_time < timeout:
+        try:
+            requests.get(url)
+            return True
+        except requests.RequestException:
+            time.sleep(1)
+    return False
+
+
+@pytest.fixture(scope="session")
+def docker_client() -> docker.DockerClient:
+    return docker.from_env()
+
+
+@pytest.fixture(autouse=True, scope="session")
+def docker_cleanup(docker_client: docker.DockerClient):
+    def cleanup():
+        for name in [PROMETHEUS_CONTAINER_NAME, METRICS_GENERATOR_APP_CONTAINER_NAME]:
+            try:
+                container = docker_client.containers.get(name)
+                container.stop()
+                container.remove(force=True)
+            except docker.errors.NotFound:
+                pass
+        try:
+            network = docker_client.networks.get(SHARED_NETWORK)
+            network.remove()
+        except docker.errors.NotFound:
+            pass
+
+    cleanup()
+    yield
+    cleanup()
+
+
+@pytest.fixture(scope="session")
+def docker_network(
+    docker_client: docker.DockerClient,
+) -> Generator[Network, None, None]:
+    try:
+        network = docker_client.networks.get(SHARED_NETWORK)
+        network.remove()
+    except NotFound:
+        pass
+    network = docker_client.networks.create(SHARED_NETWORK)
+    yield network
+    network.remove()
+
+
+@pytest.fixture(scope="session")
+def fake_app(
+    docker_client: docker.DockerClient, docker_network: Network
+) -> Generator[Tuple[str, int], None, None]:
+    host_port = 8000
+    while is_port_in_use(host_port):
+        host_port += 1
+
+    try:
+        docker_client.containers.get(METRICS_GENERATOR_APP_CONTAINER_NAME).remove(
+            force=True
+        )
+    except NotFound:
+        pass
+
+    try:
+        docker_client.images.build(
+            path="tests/indexers/dataflow/prometheus",
+            dockerfile="Dockerfile.fake_app",
+            tag="fake-app:latest",
+            rm=True,
+        )
+    except BuildError as e:
+        print("Build error:", e)
+        raise
+
+    container = docker_client.containers.run(
+        "fake-app:latest",
+        name=METRICS_GENERATOR_APP_CONTAINER_NAME,
+        detach=True,
+        ports={"8000/tcp": host_port},
+        network=docker_network.name,
+    )
+
+    if not wait_for_http_service(f"http://localhost:{host_port}/metrics"):
+        raise RuntimeError("Fake app failed to start")
+
+    yield METRICS_GENERATOR_APP_CONTAINER_NAME, host_port
+    container.remove(force=True)
+
+
+@pytest.fixture(scope="session")
+def prometheus(
+    docker_client: docker.DockerClient,
+    docker_network: Network,
+    fake_app: Tuple[str, int],
+) -> Generator[str, None, None]:
+    host_port = 9090
+    fake_app_host, fake_app_port = fake_app
+    while is_port_in_use(host_port):
+        host_port += 1
+
+    try:
+        docker_client.containers.get(PROMETHEUS_CONTAINER_NAME).remove(force=True)
+    except NotFound:
+        pass
+
+    config_dir = Path("tmp_prometheus_config")
+    config_dir.mkdir(exist_ok=True)
+    prometheus_config = f"""
+    global:
+      scrape_interval: 3s
+      evaluation_interval: 3s
+    scrape_configs:
+      - job_name: 'fake_app'
+        static_configs:
+          - targets: ['{fake_app_host}:{fake_app_port}']
+    """
+    config_path = config_dir / "prometheus.yml"
+    with open(config_path, "w") as f:
+        f.write(prometheus_config)
+
+    container = docker_client.containers.run(
+        "prom/prometheus:latest",
+        name=PROMETHEUS_CONTAINER_NAME,
+        detach=True,
+        network=docker_network.name,
+        ports={"9090/tcp": host_port},
+        mounts=[
+            Mount(
+                target="/etc/prometheus/prometheus.yml",
+                source=str(config_path.absolute()),
+                type="bind",
+                read_only=True,
+            )
+        ],
+        command=["--config.file=/etc/prometheus/prometheus.yml"],
+    )
+
+    if not wait_for_http_service(f"http://localhost:{host_port}"):
+        raise RuntimeError("Prometheus failed to start")
+
+    yield f"http://localhost:{host_port}"
+    container.remove(force=True)
+    shutil.rmtree(config_dir)
+
 
 @pytest.fixture
 def mocked_ingestion_endpoint(httpx_mock: HTTPXMock) -> str:
@@ -41,39 +206,39 @@ def mocked_ingestion_endpoint(httpx_mock: HTTPXMock) -> str:
     return endpoint
 
 
-@pytest.fixture
-def fake_app_process() -> Generator[subprocess.Popen, None, None]:
-    """Start the fake metrics-generating app."""
-    process = subprocess.Popen(
-        ["python", "fake_app.py"], stdout=subprocess.PIPE, stderr=subprocess.PIPE
-    )
-    # Wait for server to start
-    time.sleep(2)
-    yield process
-    process.terminate()
-    process.wait()
+# @pytest.fixture
+# def fake_app_process() -> Generator[subprocess.Popen, None, None]:
+#     """Start the fake metrics-generating app."""
+#     process = subprocess.Popen(
+#         ["python", "fake_app.py"], stdout=subprocess.PIPE, stderr=subprocess.PIPE
+#     )
+#     # Wait for server to start
+#     time.sleep(2)
+#     yield process
+#     process.terminate()
+#     process.wait()
+#
+#
+# @pytest.fixture
+# def prometheus_process() -> Generator[subprocess.Popen, None, None]:
+#     """Start the Prometheus server."""
+#     process = subprocess.Popen(
+#         ["prometheus", "--config.file=prometheus.yml"],
+#         stdout=subprocess.PIPE,
+#         stderr=subprocess.PIPE,
+#     )
+#
+#     time.sleep(5)
+#     yield process
+#     process.terminate()
+#     process.wait()
 
 
 @pytest.fixture
-def prometheus_process() -> Generator[subprocess.Popen, None, None]:
-    """Start the Prometheus server."""
-    process = subprocess.Popen(
-        ["prometheus", "--config.file=prometheus.yml"],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-
-    time.sleep(5)
-    yield process
-    process.terminate()
-    process.wait()
-
-
-@pytest.fixture
-def prometheus_config() -> PrometheusConfig:
+def prometheus_config(prometheus: str) -> PrometheusConfig:
     """Create a Prometheus configuration."""
     return PrometheusConfig(
-        base_url=Url("http://localhost:9090"),
+        base_url=Url(prometheus),
         queries=[
             PrometheusQueryConfig(
                 query="test_requests_total",

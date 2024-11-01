@@ -47,6 +47,6 @@ def generate_test_data():
 
 
 if __name__ == "__main__":
-    start_http_server(8080)
-    print("Started metrics server on port 8080")
+    start_http_server(8000)
+    print("Started metrics server on port 8000")
     generate_test_data()
