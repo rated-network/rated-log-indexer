@@ -105,15 +105,29 @@ class FilterManager:
         Returns parsed fields dictionary from the metrics entry if the metrics entry is successfully parsed and filtered.
         """
         try:
-            values = {metrics_entry.metric_name: metrics_entry.value}
-            self.log_parser.encryption_key = metrics_entry.organization_id
+            values = {
+                self._replace_special_characters(
+                    metrics_entry.metric_name
+                ): metrics_entry.value
+            }
+
             if metrics_entry.labels:
-                cleaned_labels = {
-                    self._replace_special_characters(k): v
-                    for k, v in metrics_entry.labels.items()
-                }
-                if cleaned_labels:
-                    values = {**values, **cleaned_labels}
+                parsed_metric = self.log_parser.parse_log(
+                    metrics_entry.labels, version=self.filter_config.version  # type: ignore
+                )
+
+                if (
+                    not parsed_metric.parsed_fields
+                    or not parsed_metric.parsed_fields.get("organization_id")
+                ):
+                    return None
+
+                values.update(
+                    {
+                        self._replace_special_characters(k): v
+                        for k, v in parsed_metric.parsed_fields.items()
+                    }
+                )
 
             idempotency_key = generate_idempotency_key(
                 event_timestamp=metrics_entry.event_timestamp,
