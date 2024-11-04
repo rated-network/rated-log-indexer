@@ -21,3 +21,4 @@ datadog-api-client==2.26.0
 rated-parser==0.1.5
 freezegun==1.5.1
 sentry-sdk
+testcontainers==4.8.2

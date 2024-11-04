@@ -3,6 +3,7 @@ from unittest.mock import patch, Mock
 import pytest
 from sqlalchemy import inspect, select
 from datetime import datetime
+from testcontainers.postgres import PostgresContainer  # type: ignore
 
 from src.config.manager import ConfigurationManager
 from src.config.models.offset import (
@@ -14,26 +15,36 @@ from src.config.models.offset import (
 from src.indexers.offset_tracker.postgres import PostgresOffsetTracker
 
 TEST_START_FROM = 123_456
-mock_config_data = OffsetYamlConfig(
-    type=OffsetTypes.POSTGRES,
-    postgres=OffsetPostgresYamlConfig(
-        host="db",
-        port=5432,
-        user="user",
-        database="test_db",
-        password="password",
-        table_name="test_table",
-    ),
-    start_from=TEST_START_FROM,
-    start_from_type=StartFromTypes.BIGINT,
-)
 
 
 @pytest.fixture(scope="module")
-@patch.object(
-    ConfigurationManager, "load_config", return_value=Mock(offset=mock_config_data)
-)
-def tracker(mock_get_config):
+def mock_config_data(postgres_container: PostgresContainer):
+    data = OffsetYamlConfig(
+        type=OffsetTypes.POSTGRES,
+        postgres=OffsetPostgresYamlConfig(
+            host=postgres_container.get_container_host_ip(),
+            port=int(postgres_container.get_exposed_port(5432)),
+            user=postgres_container.username,
+            database=postgres_container.dbname,
+            password=postgres_container.password,
+            table_name="test_table",
+        ),
+        start_from=TEST_START_FROM,
+        start_from_type=StartFromTypes.BIGINT,
+    )
+    return data
+
+
+@pytest.fixture(scope="module")
+def mock_load_config(mock_config_data):
+    with patch.object(
+        ConfigurationManager, "load_config", return_value=Mock(offset=mock_config_data)
+    ) as mocked_load_config:
+        yield mocked_load_config
+
+
+@pytest.fixture(scope="module")
+def tracker(mock_config_data, mock_load_config):
     return PostgresOffsetTracker(integration_prefix="test", config=mock_config_data)
 
 

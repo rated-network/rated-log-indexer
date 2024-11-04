@@ -1,4 +1,5 @@
 import pytest
+from testcontainers.redis import RedisContainer  # type: ignore
 
 from src.config.models.offset import (
     OffsetRedisYamlConfig,
@@ -10,21 +11,26 @@ from src.indexers.offset_tracker.redis import RedisOffsetTracker
 from src.clients.redis import RedisClient, RedisConfig
 
 TEST_START_FROM = 123_456
-mock_config_data = OffsetYamlConfig(
-    type=OffsetTypes.REDIS,
-    redis=OffsetRedisYamlConfig(
-        host="redis",
-        port=6379,
-        db=0,
-        key="test_key",
-    ),
-    start_from=TEST_START_FROM,
-    start_from_type=StartFromTypes.BIGINT,
-)
 
 
 @pytest.fixture(scope="module")
-def redis_client():
+def mock_config_data(redis_container: RedisContainer):
+    data = OffsetYamlConfig(
+        type=OffsetTypes.REDIS,
+        redis=OffsetRedisYamlConfig(
+            host=redis_container.get_container_host_ip(),
+            port=int(redis_container.get_exposed_port(6379)),
+            db=0,
+            key="test_key",
+        ),
+        start_from=TEST_START_FROM,
+        start_from_type=StartFromTypes.BIGINT,
+    )
+    return data
+
+
+@pytest.fixture(scope="module")
+def redis_client(mock_config_data):
     redis_config = RedisConfig(
         host=mock_config_data.redis.host,
         port=mock_config_data.redis.port,
@@ -38,16 +44,16 @@ def redis_client():
 
 
 @pytest.fixture
-def tracker(redis_client):
+def tracker(mock_config_data, redis_client):
     return RedisOffsetTracker(integration_prefix="test", config=mock_config_data)
 
 
-def test_redis_offset_tracker_init(tracker):
+def test_redis_offset_tracker_init(tracker, mock_config_data):
     assert tracker.key == "test:test_key"
     assert tracker.config == mock_config_data
 
 
-def test_redis_offset_tracker_get_current_offset_initial(tracker, redis_client):
+def test_redis_offset_tracker_get_current_offset_initial(tracker):
     assert tracker.get_current_offset() == TEST_START_FROM
 
 
@@ -70,7 +76,7 @@ def test_redis_offset_tracker_override_start_from(tracker, redis_client):
     assert int(redis_client.get(tracker.key)) == TEST_START_FROM
 
 
-def test_redis_offset_tracker_invalid_type():
+def test_redis_offset_tracker_invalid_type(mock_config_data):
     invalid_config = mock_config_data.model_copy()
     invalid_config.type = OffsetTypes.POSTGRES
     with pytest.raises(

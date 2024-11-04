@@ -9,7 +9,7 @@ from src.config.models.output import OutputYamlConfig
 from src.config.models.secrets import SecretsYamlConfig
 
 
-def test_load_config_valid(valid_config_yaml):
+def test_load_config_valid(valid_config_yaml, postgres_container):
     with patch("builtins.open", mock_open(read_data=valid_config_yaml)):
         with patch.object(os.path, "exists", return_value=True):
             config = ConfigurationManager.load_config()
@@ -42,11 +42,13 @@ def test_load_config_valid(valid_config_yaml):
             assert config.inputs[0].offset.start_from == 123456789
             assert config.inputs[0].offset.start_from_type == "bigint"
             assert config.inputs[0].offset.postgres.table_name == "offset_tracking"
-            assert config.inputs[0].offset.postgres.host == "db"
-            assert config.inputs[0].offset.postgres.port == 5432
-            assert config.inputs[0].offset.postgres.database == "test_db"
-            assert config.inputs[0].offset.postgres.user == "user"
-            assert config.inputs[0].offset.postgres.password == "password"
+            assert config.inputs[0].offset.postgres.host == "localhost"
+            assert config.inputs[0].offset.postgres.port == int(
+                postgres_container.get_exposed_port(5432)
+            )
+            assert config.inputs[0].offset.postgres.database == "test"
+            assert config.inputs[0].offset.postgres.user == "test"
+            assert config.inputs[0].offset.postgres.password == "test"
 
             assert config.secrets.use_secrets_manager is False
 
