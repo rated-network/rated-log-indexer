@@ -103,36 +103,41 @@ class FilterManager:
     ) -> Optional[FilteredEvent]:
         """
         Returns parsed fields dictionary from the metrics entry if the metrics entry is successfully parsed and filtered.
+
+        The method handles three cases:
+        1. Labels with filter config: Parse using log parser with version
+        2. Labels without filter config: Use labels directly with character replacement
+        3. No labels: Use only metric name and value
         """
         try:
-            values = {
+            base_values = {
                 self._replace_special_characters(
                     metrics_entry.metric_name
                 ): metrics_entry.value
             }
-
+            validated_fields = {}
             if metrics_entry.labels:
-                parsed_metric = self.log_parser.parse_log(
-                    metrics_entry.labels, version=self.filter_config.version  # type: ignore
-                )
+                if self.filter_config:
+                    parsed_metric = self.log_parser.parse_log(
+                        metrics_entry.labels,
+                        version=self.filter_config.version,  # type: ignore
+                    )
+                    fields = parsed_metric.parsed_fields
 
-                if (
-                    not parsed_metric.parsed_fields
-                    or not parsed_metric.parsed_fields.get("organization_id")
-                ):
-                    return None
+                    if not fields:
+                        logger.info("No fields found in parsed metric")
+                        return None
+                else:
+                    fields = metrics_entry.labels
 
-                values.update(
-                    {
-                        self._replace_special_characters(k): v
-                        for k, v in parsed_metric.parsed_fields.items()
-                    }
-                )
+                validated_fields = {
+                    self._replace_special_characters(k): v for k, v in fields.items()
+                }
 
             idempotency_key = generate_idempotency_key(
                 event_timestamp=metrics_entry.event_timestamp,
                 organization_id=metrics_entry.organization_id,
-                values=values,
+                values=base_values,
             )
 
             return FilteredEvent(
@@ -140,7 +145,7 @@ class FilterManager:
                 idempotency_key=idempotency_key,
                 event_timestamp=metrics_entry.event_timestamp,
                 organization_id=metrics_entry.organization_id,
-                values=values,
+                values={**base_values, **validated_fields},
             )
 
         except Exception as e:

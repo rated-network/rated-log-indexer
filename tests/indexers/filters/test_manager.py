@@ -84,3 +84,17 @@ def test_filter_manager_parsing_metrics(test_metrics):
         assert (
             len(metric.values["environment"]) == 64
         ), "Environment field should be hashed"
+
+
+def test_parsing_metrics_no_filter(test_metrics):
+    filter_manager = FilterManager(
+        filter_config=None,
+        slaos_key="metrics_test",
+        input_type=InputTypes.METRICS,
+    )
+    parsed_metrics = [
+        filter_manager.parse_and_filter_metrics(metric) for metric in test_metrics
+    ]
+    print(parsed_metrics)
+
+    assert len(parsed_metrics) == 5
