@@ -81,7 +81,7 @@ def get_offset_tracker(
         )
     elif offset_config.type == "slaos":
         return (
-            RatedAPIOffsetTracker(offset_config, final_integration_prefix),
+            RatedAPIOffsetTracker(offset_config, final_slaos_key),
             offset_config.start_from,
         )
     else:

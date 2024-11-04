@@ -13,8 +13,8 @@ logger = structlog.get_logger(__name__)
 class RatedAPIOffsetTracker(OffsetTracker):
     _current_offset: int
 
-    def __init__(self, config: OffsetYamlConfig, integration_prefix: StrictStr):
-        super().__init__(config=config, integration_prefix=integration_prefix)
+    def __init__(self, config: OffsetYamlConfig, slaos_key: StrictStr):
+        super().__init__(config=config, slaos_key=slaos_key)
         slaos_config: OffsetSlaosYamlConfig = config.slaos  # type: ignore[assignment]
         client_config = RatedOutputConfig(**slaos_config.model_dump())
         self.client = SlaosClient(client_config)
