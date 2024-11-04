@@ -28,6 +28,13 @@ class OffsetRedisYamlConfig(BaseModel):
     db: StrictInt
 
 
+class OffsetSlaosYamlConfig(BaseModel):
+    ingestion_id: StrictStr
+    ingestion_key: StrictStr
+    ingestion_url: StrictStr
+    datastream_key: StrictStr
+
+
 class StartFromTypes(str, Enum):
     BIGINT = "bigint"
     DATETIME = "datetime"
@@ -36,6 +43,7 @@ class StartFromTypes(str, Enum):
 class OffsetTypes(str, Enum):
     POSTGRES = "postgres"
     REDIS = "redis"
+    SLAOS = "slaos"
 
 
 class OffsetYamlConfig(BaseModel):
@@ -46,6 +54,7 @@ class OffsetYamlConfig(BaseModel):
 
     postgres: Optional[OffsetPostgresYamlConfig] = None
     redis: Optional[OffsetRedisYamlConfig] = None
+    slaos: Optional[OffsetSlaosYamlConfig] = None
 
     @model_validator(mode="before")
     def validate_config_type(cls, values):
@@ -56,10 +65,17 @@ class OffsetYamlConfig(BaseModel):
                     'postgres configuration is required when type is "postgres"'
                 )
             values["redis"] = None
+            values["slaos"] = None
         elif offset_type == OffsetTypes.REDIS:
             if "redis" not in values or not values["redis"]:
                 raise ValueError('redis configuration is required when type is "redis"')
             values["postgres"] = None
+            values["slaos"] = None
+        elif offset_type == OffsetTypes.SLAOS:
+            if not values.get("slaos"):
+                raise ValueError('slaos configuration is required when type is "slaos"')
+            values["postgres"] = None
+            values["redis"] = None
         return values
 
     @model_validator(mode="before")
