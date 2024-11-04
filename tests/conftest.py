@@ -88,6 +88,74 @@ def valid_config_dict(postgres_container):
 
 
 @pytest.fixture
+def valid_prometheus_config_dict():
+    return {
+        "inputs": [
+            {
+                "integration": "prometheus",
+                "slaos_key": "prometheus_metrics",
+                "type": "metrics",
+                "prometheus": {
+                    "base_url": "http://www.base-url.com:9090",
+                    "queries": [
+                        {
+                            "query": "rate(test_requests_total[5m]) by (user_id)",
+                            "step": {"value": 30, "unit": "s"},
+                            "slaos_metric_name": "test_requests_rate",
+                            "organization_identifier": "user_id",
+                        }
+                    ],
+                    "timeout": 15.0,
+                    "max_retries": 3,
+                },
+                "filters": {
+                    "version": 1,
+                    "log_format": "json_dict",
+                    "log_example": {},
+                    "fields": [
+                        {
+                            "key": "organization_id",
+                            "value": "test_org",
+                            "field_type": "string",
+                            "path": "user_id",
+                        },
+                        {
+                            "key": "instance",
+                            "value": "0",
+                            "field_type": "string",
+                            "path": "instance",
+                        },
+                        {
+                            "key": "region",
+                            "value": "0",
+                            "field_type": "string",
+                            "path": "region",
+                            "hash": True,
+                        },
+                    ],
+                },
+                "offset": {
+                    "type": "redis",
+                    "override_start_from": True,
+                    "start_from": 1730729435241,
+                    "start_from_type": "bigint",
+                    "redis": {"host": "redis", "port": 6379, "db": 0},
+                },
+            },
+        ],
+        "output": {
+            "type": "rated",
+            "rated": {
+                "ingestion_id": "ingestion_id",
+                "ingestion_key": "ingestion_key",
+                "ingestion_url": "https://your_ingestion_url.com/v1/ingest",
+            },
+        },
+        "secrets": {"use_secrets_manager": False},
+    }
+
+
+@pytest.fixture
 def valid_config_yaml(valid_config_dict):
     return yaml.dump(valid_config_dict)
 

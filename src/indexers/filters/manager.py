@@ -134,10 +134,12 @@ class FilterManager:
                     self._replace_special_characters(k): v for k, v in fields.items()
                 }
 
+            values = {**base_values, **validated_fields}
+
             idempotency_key = generate_idempotency_key(
                 event_timestamp=metrics_entry.event_timestamp,
                 organization_id=metrics_entry.organization_id,
-                values=base_values,
+                values=values,
             )
 
             return FilteredEvent(
@@ -145,7 +147,7 @@ class FilterManager:
                 idempotency_key=idempotency_key,
                 event_timestamp=metrics_entry.event_timestamp,
                 organization_id=metrics_entry.organization_id,
-                values={**base_values, **validated_fields},
+                values=values,
             )
 
         except Exception as e:

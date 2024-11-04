@@ -1,5 +1,6 @@
 import json
-from unittest.mock import patch
+from datetime import timedelta, datetime, timezone
+from unittest.mock import patch, MagicMock
 
 import pytest
 from bytewax.testing import run_main, TestingSource
@@ -25,9 +26,43 @@ from src.config.models.output import RatedOutputConfig
 from src.config.models.inputs.input import IntegrationTypes, InputTypes, InputYamlConfig
 from src.config.models.output import OutputTypes
 from src.indexers.sinks.rated import build_http_sink
-from src.indexers.sources.rated import TimeRange
+from src.indexers.sources.rated import TimeRange, FetchInterval, RatedPartition
 from src.config.manager import RatedIndexerYamlConfig
 from src.indexers.dataflow import build_dataflow
+
+
+@pytest.fixture
+def mock_prometheus_query():
+    # Just return an empty iterator - we only care about timing
+    return MagicMock(return_value=iter([]))
+
+
+@pytest.fixture
+def mock_time():
+    with patch("src.indexers.sources.rated.datetime") as dt_mock:
+        # Set a fixed "now" time
+        fixed_time = datetime(2024, 1, 1, 10, 0, tzinfo=timezone.utc)
+        dt_mock.now.return_value = fixed_time
+        yield dt_mock
+
+
+@pytest.fixture
+def mock_offset_tracker():
+    mock = MagicMock()
+    mock.get_current_offset.return_value = int(
+        datetime(2024, 1, 1, 9, 0, tzinfo=timezone.utc).timestamp() * 1000
+    )
+    return mock
+
+
+@pytest.fixture
+def mock_get_offset_tracker(mock_offset_tracker):
+    with patch("src.indexers.sources.rated.get_offset_tracker") as mock:
+        mock.return_value = (
+            mock_offset_tracker,
+            mock_offset_tracker.get_current_offset(),
+        )
+        yield mock
 
 
 @pytest.fixture
@@ -637,3 +672,41 @@ def test_metrics_logs_inputs_dataflow(
             assert (
                 len(item["values"]["duration_ms"]) == 64
             ), "Hashed duration_ms should be 64 characters"
+
+
+def test_metrics_interval(
+    mock_load_config,
+    mock_time,
+    mock_get_offset_tracker,
+    valid_prometheus_config_dict,
+    mock_prometheus_query,
+):
+    valid_config = RatedIndexerYamlConfig(**valid_prometheus_config_dict)
+    mock_load_config.return_value = valid_config
+
+    # Create partition directly to test intervals
+    partition = RatedPartition("prometheus_metrics", 0)
+
+    # Initial batch - should be MAX interval for catch-up
+    first_batch = partition.next_batch()
+    assert len(first_batch) == 1
+    assert (
+        first_batch[0].end_time - first_batch[0].start_time
+    ) == FetchInterval.MAX.to_milliseconds()
+
+    # Move time forward
+    new_time = mock_time.now.return_value + timedelta(
+        seconds=float(FetchInterval.METRICS)
+    )
+    mock_time.now.return_value = new_time
+
+    # Next batch should use METRICS interval
+    second_batch = partition.next_batch()
+    assert len(second_batch) == 1
+    assert (
+        second_batch[0].end_time - second_batch[0].start_time
+    ) <= FetchInterval.METRICS.to_milliseconds()
+
+    # Verify next_awake timing
+    expected_wake = new_time + timedelta(seconds=float(FetchInterval.METRICS))
+    assert abs(partition.next_awake().timestamp() - expected_wake.timestamp()) < 1

@@ -1,4 +1,5 @@
 from datetime import datetime, timezone, timedelta
+from enum import Enum
 from typing import Optional, List, Any
 
 import structlog
@@ -11,7 +12,14 @@ from src.utils.time_conversion import from_milliseconds, to_milliseconds
 
 logger = structlog.get_logger(__name__)
 
-FETCH_INTERVAL_MS = 3_600_000  # 1 hour
+
+class FetchInterval(int, Enum):
+    MAX = 3_600  # 1 hour
+    LOGS = 24
+    METRICS = 60  # 1 minute
+
+    def to_milliseconds(self):
+        return self.value * 1000
 
 
 class TimeRange(BaseModel):
@@ -20,6 +28,7 @@ class TimeRange(BaseModel):
 
 
 class RatedPartition(StatefulSourcePartition[TimeRange, None]):
+
     def __init__(self, slaos_key: StrictStr, config_index: StrictInt) -> None:
         self._next_awake = datetime.now(timezone.utc)
 
@@ -28,9 +37,15 @@ class RatedPartition(StatefulSourcePartition[TimeRange, None]):
         self.offset_tracker, self.config_start_from = get_offset_tracker(
             slaos_key, config_index
         )
+        self.config_type = self.config[config_index].type
 
         self.current_time = self._get_current_offset()
         self.timestamp = from_milliseconds(self.current_time)
+        self.interval = (
+            float(FetchInterval.LOGS)
+            if self.config_type == "logs"
+            else float(FetchInterval.METRICS)
+        )
         logger.info(f"Indexing from {(self.current_time, self.timestamp)}")
 
     def _get_current_offset(self) -> PositiveInt:
@@ -71,12 +86,12 @@ class RatedPartition(StatefulSourcePartition[TimeRange, None]):
         timestamp = datetime.now(timezone.utc)
         head = to_milliseconds(timestamp)
 
-        if head - self.current_time > FETCH_INTERVAL_MS:
-            head = self.current_time + FETCH_INTERVAL_MS
+        if head - self.current_time > FetchInterval.MAX.to_milliseconds():
+            head = self.current_time + FetchInterval.MAX.to_milliseconds()
         if head <= self.current_time:
             return None
 
-        start_time = self.current_time + 1
+        start_time = self.current_time
         self.current_time = head
 
         self.offset_tracker.update_offset(self.current_time)
@@ -86,12 +101,15 @@ class RatedPartition(StatefulSourcePartition[TimeRange, None]):
     def next_batch(self) -> List[TimeRange]:
         time_range = self._get_time_range()
         if not time_range:
-            self._next_awake += timedelta(seconds=24.0)
+            self._next_awake += timedelta(seconds=self.interval)
             return []
-        if time_range.start_time - time_range.end_time == FETCH_INTERVAL_MS:
+        if (
+            time_range.start_time - time_range.end_time
+            == FetchInterval.MAX.to_milliseconds()
+        ):
             self._next_awake += timedelta(seconds=2.0)
         else:
-            self._next_awake += timedelta(seconds=24.0)
+            self._next_awake += timedelta(seconds=self.interval)
         return [time_range]
 
     def next_awake(self):
