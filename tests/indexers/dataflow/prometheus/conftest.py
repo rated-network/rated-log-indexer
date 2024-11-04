@@ -269,6 +269,7 @@ def prometheus_config(prometheus: str) -> PrometheusConfig:
         pool_connections=10,
         pool_maxsize=10,
         max_parallel_queries=2,
+        timeout=6.5,
     )
 
 

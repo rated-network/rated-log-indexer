@@ -34,16 +34,15 @@ class PrometheusClientWrapper:
 
         for query_config in self.config.queries:
             try:
+
                 options = PrometheusQueryOptions(
                     start_time=start_datetime,
                     end_time=end_datetime,
                     step=query_config.step,
-                    # TODO: fix timeout error: invalid parameter "timeout": cannot parse "1.0s" to a valid duration
-                    # timeout=float(self.config.timeout),
+                    timeout=self.config.timeout,
                 )
 
                 result = self.client.query_range(query_config.query, options)
-                print(result)
 
                 for metric in result.metrics:
                     org_id = metric.identifier.labels.get(

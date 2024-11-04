@@ -111,4 +111,5 @@ class PrometheusConfig(BaseModel):
             raise ValueError("pool_connections cannot be greater than pool_maxsize")
         if self.max_parallel_queries > self.pool_maxsize:
             raise ValueError("max_parallel_queries cannot be greater than pool_maxsize")
+
         return self
