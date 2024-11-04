@@ -1,6 +1,8 @@
 import json
+import shutil
 import socket
 import time
+from pathlib import Path
 from typing import Generator, Tuple
 
 import docker
@@ -10,6 +12,7 @@ import re
 import pytest
 from docker.errors import NotFound, BuildError
 from docker.models.networks import Network
+from docker.types import Mount
 from pydantic_core import Url
 from pytest_httpx import HTTPXMock
 
@@ -121,12 +124,13 @@ def fake_app(
     docker_client: docker.DockerClient, docker_network: Network
 ) -> Generator[Tuple[str, int], None, None]:
     host_port = 8000
-    while is_port_in_use(host_port, "0.0.0.0"):
+    while is_port_in_use(host_port):
         host_port += 1
 
     try:
-        container = docker_client.containers.get(METRICS_GENERATOR_APP_CONTAINER_NAME)
-        container.remove(force=True)
+        docker_client.containers.get(METRICS_GENERATOR_APP_CONTAINER_NAME).remove(
+            force=True
+        )
     except NotFound:
         pass
 
@@ -146,17 +150,13 @@ def fake_app(
         name=METRICS_GENERATOR_APP_CONTAINER_NAME,
         detach=True,
         ports={"8000/tcp": host_port},
-        network_mode="bridge",
+        network=docker_network.name,
     )
 
-    # Wait for container to be ready
-    container.reload()
-    container_ip = container.attrs["NetworkSettings"]["Networks"]["bridge"]["IPAddress"]
-
-    if not wait_for_http_service(f"http://{container_ip}:8000/metrics"):
+    if not wait_for_http_service(f"http://localhost:{host_port}/metrics"):
         raise RuntimeError("Fake app failed to start")
 
-    yield container_ip, 8000
+    yield METRICS_GENERATOR_APP_CONTAINER_NAME, host_port
     container.remove(force=True)
 
 
@@ -167,69 +167,53 @@ def prometheus(
     fake_app: Tuple[str, int],
 ) -> Generator[str, None, None]:
     host_port = 9090
-    fake_app_ip, fake_app_port = fake_app
-    while is_port_in_use(host_port, "0.0.0.0"):
+    fake_app_host, fake_app_port = fake_app
+    while is_port_in_use(host_port):
         host_port += 1
 
     try:
-        container = docker_client.containers.get(PROMETHEUS_CONTAINER_NAME)
-        container.remove(force=True)
+        docker_client.containers.get(PROMETHEUS_CONTAINER_NAME).remove(force=True)
     except NotFound:
         pass
 
-    config_content = f"""
+    config_dir = Path("tmp_prometheus_config")
+    config_dir.mkdir(exist_ok=True)
+    prometheus_config = f"""
     global:
       scrape_interval: 3s
       evaluation_interval: 3s
     scrape_configs:
       - job_name: 'fake_app'
         static_configs:
-          - targets: ['{fake_app_ip}:{fake_app_port}']
+          - targets: ['{fake_app_host}:{fake_app_port}']
     """
-
-    config_container = docker_client.containers.run(
-        "alpine",
-        name="prometheus_config_writer",
-        command=[
-            "/bin/sh",
-            "-c",
-            f"mkdir -p /prometheus && echo '{config_content}' > /prometheus/prometheus.yml",
-        ],
-        volumes=["prometheus_config:/prometheus"],
-        detach=True,
-    )
-
-    config_container.wait()
-    config_container.remove()
+    config_path = config_dir / "prometheus.yml"
+    with open(config_path, "w") as f:
+        f.write(prometheus_config)
 
     container = docker_client.containers.run(
         "prom/prometheus:latest",
         name=PROMETHEUS_CONTAINER_NAME,
         detach=True,
-        network_mode="bridge",
+        network=docker_network.name,
         ports={"9090/tcp": host_port},
-        volumes=["prometheus_config:/etc/prometheus:ro"],
+        mounts=[
+            Mount(
+                target="/etc/prometheus/prometheus.yml",
+                source=str(config_path.absolute()),
+                type="bind",
+                read_only=True,
+            )
+        ],
         command=["--config.file=/etc/prometheus/prometheus.yml"],
     )
 
-    container.reload()
-    container_ip = container.attrs["NetworkSettings"]["Networks"]["bridge"]["IPAddress"]
-
-    print(f"Prometheus container IP: {container_ip}")
-    if not wait_for_http_service(f"http://{container_ip}:9090"):
-        container.stop()
-        container.remove(force=True)
+    if not wait_for_http_service(f"http://localhost:{host_port}"):
         raise RuntimeError("Prometheus failed to start")
 
-    yield f"http://{container_ip}:9090"
-
-    # Cleanup
+    yield f"http://localhost:{host_port}"
     container.remove(force=True)
-    try:
-        volume = docker_client.volumes.get("prometheus_config")
-        volume.remove()
-    except Exception:
-        pass
+    shutil.rmtree(config_dir)
 
 
 @pytest.fixture
