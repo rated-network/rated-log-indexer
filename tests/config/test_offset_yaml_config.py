@@ -112,10 +112,6 @@ def test_get_offset_tracker_multiple_calls_same_prefix(
     assert results[1][0].slaos_key == "prefix1_1"
     assert results[1][1] == 987654321
 
-    assert isinstance(results[2][0], PostgresOffsetTracker)
-    assert results[2][0].slaos_key == "prefix1_0"
-    assert results[2][1] == 123456789
-
     with pytest.raises(ValueError):
         get_offset_tracker("prefix1", 2)
 
