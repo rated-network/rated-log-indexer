@@ -1,4 +1,5 @@
 import pytest
+from testcontainers.redis import RedisContainer  # type: ignore
 
 from src.clients.redis import RedisConfig, RedisClient
 
@@ -20,7 +21,13 @@ def test_redis_client_close(redis_client):
     assert redis_client.client is None
 
 
-def test_redis_client_get_set(redis_client):
-    redis_client.set("test_key", "test_value")
-    value = redis_client.get("test_key")
+def test_redis_client_get_set(redis_container: RedisContainer):
+    config = RedisConfig(
+        host=redis_container.get_container_host_ip(),
+        port=redis_container.get_exposed_port(6379),
+        db=0,
+    )
+    client = RedisClient(config)
+    client.set("test_key", "test_value")
+    value = client.get("test_key")
     assert value == "test_value"

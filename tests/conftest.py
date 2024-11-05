@@ -2,12 +2,26 @@ from unittest.mock import patch
 
 import pytest
 import yaml
+from testcontainers.postgres import PostgresContainer  # type: ignore
+from testcontainers.redis import RedisContainer  # type: ignore
 
 from src.config.manager import ConfigurationManager
 
 
+@pytest.fixture(scope="module")
+def postgres_container():
+    with PostgresContainer() as postgres:
+        yield postgres
+
+
+@pytest.fixture(scope="module")
+def redis_container():
+    with RedisContainer() as redis:
+        yield redis
+
+
 @pytest.fixture
-def valid_config_dict():
+def valid_config_dict(postgres_container):
     return {
         "inputs": [
             {
@@ -51,11 +65,11 @@ def valid_config_dict():
                     "start_from_type": "bigint",
                     "postgres": {
                         "table_name": "offset_tracking",
-                        "host": "db",
-                        "port": 5432,
-                        "database": "test_db",
-                        "user": "user",
-                        "password": "password",
+                        "host": "localhost",
+                        "port": int(postgres_container.get_exposed_port(5432)),
+                        "database": "test",
+                        "user": "test",
+                        "password": "test",
                     },
                 },
             }

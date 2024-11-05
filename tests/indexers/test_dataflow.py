@@ -5,6 +5,7 @@ import pytest
 from bytewax.testing import run_main, TestingSource
 from pytest_httpx import HTTPXMock
 from rated_parser.payloads.inputs import JsonFieldDefinition, LogFormat, FieldType  # type: ignore
+from testcontainers.redis import RedisContainer  # type: ignore
 
 from src.config.models.offset import (
     OffsetYamlConfig,
@@ -48,6 +49,7 @@ def test_logs_dataflow(
     httpx_mock: HTTPXMock,
     valid_config_dict,
     mocked_ingestion_endpoint,
+    redis_container: RedisContainer,
 ):
     valid_config = RatedIndexerYamlConfig(**valid_config_dict)
     mock_load_config.return_value = valid_config
@@ -244,6 +246,7 @@ def test_multiple_inputs_dataflow(
     httpx_mock: HTTPXMock,
     valid_config_dict,
     mocked_ingestion_endpoint,
+    redis_container: RedisContainer,
 ):
     config = RatedIndexerYamlConfig(**valid_config_dict)
     cloudwatch_config = InputYamlConfig(
@@ -259,7 +262,10 @@ def test_multiple_inputs_dataflow(
             start_from=123456789,
             start_from_type=StartFromTypes.BIGINT,
             redis=OffsetRedisYamlConfig(
-                host="localhost", port=6379, db=0, key="offset_tracking"
+                host="localhost",
+                port=int(redis_container.get_exposed_port(6379)),
+                db=0,
+                key="offset_tracking",
             ),
         ),
         filters=FiltersYamlConfig(
@@ -404,6 +410,7 @@ def test_metrics_logs_inputs_dataflow(
     httpx_mock: HTTPXMock,
     valid_config_dict,
     mocked_ingestion_endpoint,
+    redis_container: RedisContainer,
 ):
     config = RatedIndexerYamlConfig(**valid_config_dict)
 
@@ -432,7 +439,10 @@ def test_metrics_logs_inputs_dataflow(
             start_from=123456789,
             start_from_type=StartFromTypes.BIGINT,
             redis=OffsetRedisYamlConfig(
-                host="localhost", port=6379, db=0, key="offset_tracking"
+                host="localhost",
+                port=int(redis_container.get_exposed_port(6379)),
+                db=0,
+                key="offset_tracking",
             ),
         ),
         filters=None,
@@ -453,7 +463,10 @@ def test_metrics_logs_inputs_dataflow(
             start_from=123456789,
             start_from_type=StartFromTypes.BIGINT,
             redis=OffsetRedisYamlConfig(
-                host="localhost", port=6379, db=0, key="offset_tracking"
+                host="localhost",
+                port=int(redis_container.get_exposed_port(6379)),
+                db=0,
+                key="offset_tracking",
             ),
         ),
         filters=FiltersYamlConfig(

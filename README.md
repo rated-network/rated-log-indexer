@@ -19,7 +19,7 @@ Before you begin, ensure you have the following:
 
 1. A Rated slaOS account. If you don't have one, sign up at [app.rated.co](https://app.rated.co).
 2. Ingestion URL, ID, and key from your Rated [slaOS general settings](https://app.rated.co/settings/general).
-3. Docker and Docker Compose plugin installed on your system.
+3. Docker plugin installed on your system.
 4. GNU Make installed.
 5. pre-commit installed.
 
