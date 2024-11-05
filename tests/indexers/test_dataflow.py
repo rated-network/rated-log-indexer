@@ -41,7 +41,7 @@ def mock_prometheus_query():
 def mock_time():
     with patch("src.indexers.sources.rated.datetime") as dt_mock:
         # Set a fixed "now" time
-        fixed_time = datetime(2024, 1, 1, 10, 0, tzinfo=timezone.utc)
+        fixed_time = datetime(2024, 1, 1, 10, 1, tzinfo=timezone.utc)
         dt_mock.now.return_value = fixed_time
         yield dt_mock
 

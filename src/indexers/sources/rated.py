@@ -28,6 +28,7 @@ class TimeRange(BaseModel):
 
 
 class RatedPartition(StatefulSourcePartition[TimeRange, None]):
+    BUFFER_MS = 60_000
 
     def __init__(self, slaos_key: StrictStr, config_index: StrictInt) -> None:
         self._next_awake = datetime.now(timezone.utc)
@@ -80,14 +81,30 @@ class RatedPartition(StatefulSourcePartition[TimeRange, None]):
 
     def _get_time_range(self) -> Optional[TimeRange]:
         """
-        Fetches the next time range to index from integration, with a max of a day's worth of logs.
+        Fetches the next time range to index from integration.
+        Uses MAX interval when backfilling, switches to smaller consistent intervals
+        when close to real-time.
         """
-
         timestamp = datetime.now(timezone.utc)
-        head = to_milliseconds(timestamp)
+        current_time_ms = to_milliseconds(timestamp)
 
-        if head - self.current_time > FetchInterval.MAX.to_milliseconds():
-            head = self.current_time + FetchInterval.MAX.to_milliseconds()
+        lag = current_time_ms - self.current_time
+
+        if lag > FetchInterval.MAX.to_milliseconds():
+            window_size = FetchInterval.MAX.to_milliseconds()
+            logger.debug(
+                f"Using MAX interval for backfill. Lag: {lag/1000:.2f} seconds"
+            )
+        else:
+            window_size = int(self.interval * 1000)
+            logger.debug(f"Using standard interval. Lag: {lag/1000:.2f} seconds")
+
+        # Calculate head based on window size
+        head = self.current_time + window_size
+
+        # Don't go beyond current time
+        head = min(head, current_time_ms)
+
         if head <= self.current_time:
             return None
 
@@ -99,17 +116,28 @@ class RatedPartition(StatefulSourcePartition[TimeRange, None]):
         return TimeRange(start_time=start_time, end_time=head)
 
     def next_batch(self) -> List[TimeRange]:
+        """
+        Returns the next batch of time ranges to process.
+        Uses minimal delay until caught up to real-time.
+        """
         time_range = self._get_time_range()
         if not time_range:
             self._next_awake += timedelta(seconds=self.interval)
             return []
-        if (
-            time_range.start_time - time_range.end_time
-            == FetchInterval.MAX.to_milliseconds()
-        ):
-            self._next_awake += timedelta(seconds=2.0)
+
+        # Calculate how far the end of our time range is from current time
+        current_time_ms = to_milliseconds(datetime.now(timezone.utc))
+        lag = current_time_ms - time_range.end_time
+
+        # If we're behind by more than our standard interval, use minimal delay
+        if lag > (self.interval * 1000 + self.BUFFER_MS):
+            self._next_awake += timedelta(seconds=2.0)  # Minimal delay for catching up
+            logger.debug(f"Using minimal delay. Current lag: {lag / 1000:.2f} seconds")
         else:
+            # We're caught up - use normal interval delay
             self._next_awake += timedelta(seconds=self.interval)
+            logger.debug(f"Using standard delay. Current lag: {lag / 1000:.2f} seconds")
+
         return [time_range]
 
     def next_awake(self):
