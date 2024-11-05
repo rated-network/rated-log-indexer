@@ -6,7 +6,7 @@ from pydantic import PositiveInt
 
 from src.clients.cloudwatch import (
     CloudwatchClient,
-    CloudwatchInputs,
+    CloudwatchSupportedInputTypes,
     CloudwatchClientError,
 )
 from src.config.models.inputs.cloudwatch import (
@@ -265,6 +265,6 @@ def test_retry_on_error(mock_client):
         CloudwatchClientError,
         match="Rate limit hit, retrying",
     ):
-        client.make_api_call(CloudwatchInputs.LOGS, params)
+        client.make_api_call(CloudwatchSupportedInputTypes.LOGS, params)
 
     assert client.logs_client.filter_log_events.call_count == 10

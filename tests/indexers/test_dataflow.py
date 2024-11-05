@@ -1,5 +1,6 @@
 import json
-from unittest.mock import patch
+from datetime import timedelta, datetime, timezone
+from unittest.mock import patch, MagicMock
 
 import pytest
 from bytewax.testing import run_main, TestingSource
@@ -25,9 +26,43 @@ from src.config.models.output import RatedOutputConfig
 from src.config.models.inputs.input import IntegrationTypes, InputTypes, InputYamlConfig
 from src.config.models.output import OutputTypes
 from src.indexers.sinks.rated import build_http_sink
-from src.indexers.sources.rated import TimeRange
+from src.indexers.sources.rated import TimeRange, FetchInterval, RatedPartition
 from src.config.manager import RatedIndexerYamlConfig
 from src.indexers.dataflow import build_dataflow
+
+
+@pytest.fixture
+def mock_prometheus_query():
+    # Just return an empty iterator - we only care about timing
+    return MagicMock(return_value=iter([]))
+
+
+@pytest.fixture
+def mock_time():
+    with patch("src.indexers.sources.rated.datetime") as dt_mock:
+        # Set a fixed "now" time
+        fixed_time = datetime(2024, 1, 1, 10, 1, tzinfo=timezone.utc)
+        dt_mock.now.return_value = fixed_time
+        yield dt_mock
+
+
+@pytest.fixture
+def mock_offset_tracker():
+    mock = MagicMock()
+    mock.get_current_offset.return_value = int(
+        datetime(2024, 1, 1, 9, 0, tzinfo=timezone.utc).timestamp() * 1000
+    )
+    return mock
+
+
+@pytest.fixture
+def mock_get_offset_tracker(mock_offset_tracker):
+    with patch("src.indexers.sources.rated.get_offset_tracker") as mock:
+        mock.return_value = (
+            mock_offset_tracker,
+            mock_offset_tracker.get_current_offset(),
+        )
+        yield mock
 
 
 @pytest.fixture
@@ -101,7 +136,7 @@ def test_logs_dataflow(
             ),
         ],
     )
-    filter_manager = FilterManager(filter_config, "integration_prefix", InputTypes.LOGS)
+    filter_manager = FilterManager(filter_config, "slaos_key", InputTypes.LOGS)
 
     mock_input = TestingSource([TimeRange(start_time=1, end_time=2)])
     inputs = [
@@ -112,14 +147,14 @@ def test_logs_dataflow(
             mock_input,
             mock_fetch_cloudwatch_logs,
             filter_manager.parse_and_filter_log,
-            "integration_prefix",
+            "slaos_key",
         )
     ]
 
     flow = build_dataflow(
         inputs,  # type: ignore
         OutputTypes.RATED,
-        lambda prefix: build_http_sink(output_config, integration_prefix=prefix),
+        lambda prefix: build_http_sink(output_config, slaos_key=prefix),
     )
 
     run_main(flow)
@@ -206,9 +241,7 @@ def test_metrics_dataflow(
     )
 
     mock_input = TestingSource([TimeRange(start_time=1, end_time=2)])
-    filter_manager = FilterManager(
-        None, "datadog_integration_prefix", InputTypes.METRICS
-    )
+    filter_manager = FilterManager(None, "datadog_slaos_key", InputTypes.METRICS)
     inputs = [
         (
             IntegrationTypes.DATADOG,
@@ -217,14 +250,14 @@ def test_metrics_dataflow(
             mock_input,
             mock_fetch_metrics,
             filter_manager.parse_and_filter_metrics,
-            "datadog_integration_prefix",
+            "datadog_slaos_key",
         )
     ]
 
     flow = build_dataflow(
         inputs,  # type: ignore
         OutputTypes.RATED,
-        lambda prefix: build_http_sink(output_config, integration_prefix=prefix),
+        lambda prefix: build_http_sink(output_config, slaos_key=prefix),
     )
 
     run_main(flow)
@@ -250,6 +283,7 @@ def test_multiple_inputs_dataflow(
 ):
     config = RatedIndexerYamlConfig(**valid_config_dict)
     cloudwatch_config = InputYamlConfig(
+        slaos_key="cloudwatch_slaos_key",
         type=InputTypes.LOGS,
         integration=IntegrationTypes.CLOUDWATCH,
         cloudwatch=CloudwatchConfig(
@@ -348,7 +382,7 @@ def test_multiple_inputs_dataflow(
     mock_input_logs2 = TestingSource([TimeRange(start_time=1, end_time=2)])
 
     filter_manager = FilterManager(
-        config.inputs[0].filters, "cloudwatch_integration_prefix", InputTypes.LOGS
+        config.inputs[0].filters, "cloudwatch_slaos_key", InputTypes.LOGS
     )
 
     inputs = [
@@ -359,7 +393,7 @@ def test_multiple_inputs_dataflow(
             mock_input_logs1,
             mock_fetch_logs,
             filter_manager.parse_and_filter_log,
-            "cloudwatch_integration_prefix",
+            "cloudwatch_slaos_key",
         ),
         (
             IntegrationTypes.CLOUDWATCH,
@@ -368,14 +402,14 @@ def test_multiple_inputs_dataflow(
             mock_input_logs2,
             mock_fetch_logs,
             filter_manager.parse_and_filter_log,
-            "cloudwatch_integration_prefix",
+            "cloudwatch_slaos_key",
         ),
     ]
 
     flow = build_dataflow(
         inputs,  # type: ignore
         OutputTypes.RATED,
-        lambda prefix: build_http_sink(output_config, integration_prefix=prefix),
+        lambda prefix: build_http_sink(output_config, slaos_key=prefix),
     )
 
     run_main(flow)
@@ -418,7 +452,7 @@ def test_metrics_logs_inputs_dataflow(
     datadog_config = InputYamlConfig(
         type=InputTypes.METRICS,
         integration=IntegrationTypes.DATADOG,
-        integration_prefix="datadog_integration_prefix",
+        slaos_key="datadog_slaos_key",
         datadog=DatadogConfig(
             api_key="your_api_key",
             app_key="your_app_key",
@@ -452,7 +486,7 @@ def test_metrics_logs_inputs_dataflow(
     cloudwatch_config = InputYamlConfig(
         type=InputTypes.LOGS,
         integration=IntegrationTypes.CLOUDWATCH,
-        integration_prefix="cloudwatch_integration_prefix",
+        slaos_key="cloudwatch_slaos_key",
         cloudwatch=CloudwatchConfig(
             aws_access_key_id="fake_access_key",
             aws_secret_access_key="fake_secret_key",
@@ -571,10 +605,10 @@ def test_metrics_logs_inputs_dataflow(
     mock_input_logs = TestingSource([TimeRange(start_time=1, end_time=2)])
 
     filter_manager_logs = FilterManager(
-        config.inputs[0].filters, "cloudwatch_integration_prefix", InputTypes.LOGS
+        config.inputs[0].filters, "cloudwatch_slaos_key", InputTypes.LOGS
     )
     filter_manager_metrics = FilterManager(
-        config.inputs[1].filters, "datadog_integration_prefix", InputTypes.METRICS
+        config.inputs[1].filters, "datadog_slaos_key", InputTypes.METRICS
     )
 
     inputs = [
@@ -585,7 +619,7 @@ def test_metrics_logs_inputs_dataflow(
             mock_input_metrics,
             mock_fetch_metrics,
             filter_manager_metrics.parse_and_filter_metrics,
-            "datadog_integration_prefix",
+            "datadog_slaos_key",
         ),
         (
             IntegrationTypes.CLOUDWATCH,
@@ -594,14 +628,14 @@ def test_metrics_logs_inputs_dataflow(
             mock_input_logs,
             mock_fetch_logs,
             filter_manager_logs.parse_and_filter_log,
-            "cloudwatch_integration_prefix",
+            "cloudwatch_slaos_key",
         ),
     ]
 
     flow = build_dataflow(
         inputs,  # type: ignore
         config.output.type,
-        lambda prefix: build_http_sink(output_config, integration_prefix=prefix),
+        lambda prefix: build_http_sink(output_config, slaos_key=prefix),
     )
 
     run_main(flow)
@@ -638,3 +672,41 @@ def test_metrics_logs_inputs_dataflow(
             assert (
                 len(item["values"]["duration_ms"]) == 64
             ), "Hashed duration_ms should be 64 characters"
+
+
+def test_metrics_interval(
+    mock_load_config,
+    mock_time,
+    mock_get_offset_tracker,
+    valid_prometheus_config_dict,
+    mock_prometheus_query,
+):
+    valid_config = RatedIndexerYamlConfig(**valid_prometheus_config_dict)
+    mock_load_config.return_value = valid_config
+
+    # Create partition directly to test intervals
+    partition = RatedPartition("prometheus_metrics", 0)
+
+    # Initial batch - should be MAX interval for catch-up
+    first_batch = partition.next_batch()
+    assert len(first_batch) == 1
+    assert (
+        first_batch[0].end_time - first_batch[0].start_time
+    ) == FetchInterval.MAX.to_milliseconds()
+
+    # Move time forward
+    new_time = mock_time.now.return_value + timedelta(
+        seconds=float(FetchInterval.METRICS)
+    )
+    mock_time.now.return_value = new_time
+
+    # Next batch should use METRICS interval
+    second_batch = partition.next_batch()
+    assert len(second_batch) == 1
+    assert (
+        second_batch[0].end_time - second_batch[0].start_time
+    ) <= FetchInterval.METRICS.to_milliseconds()
+
+    # Verify next_awake timing
+    expected_wake = new_time + timedelta(seconds=float(FetchInterval.METRICS))
+    assert abs(partition.next_awake().timestamp() - expected_wake.timestamp()) < 1

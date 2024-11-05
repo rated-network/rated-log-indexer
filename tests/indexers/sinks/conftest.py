@@ -21,7 +21,7 @@ def mocked_time():
 def test_events():
     logs = [
         {
-            "integration_prefix": "",
+            "slaos_key": "",
             "organization_id": "organization_id_one",
             "idempotency_key": "mock_log_one",
             "event_timestamp": datetime.fromtimestamp(
@@ -30,7 +30,7 @@ def test_events():
             "values": {"example_key": "example_value_one"},
         },
         {
-            "integration_prefix": "",
+            "slaos_key": "",
             "organization_id": "organization_id_two",
             "idempotency_key": "mock_log_two",
             "event_timestamp": datetime.fromtimestamp(
@@ -39,7 +39,7 @@ def test_events():
             "values": {"example_key": "example_value_two"},
         },
         {
-            "integration_prefix": "",
+            "slaos_key": "",
             "organization_id": "organization_id_three",
             "idempotency_key": "mock_log_three",
             "event_timestamp": datetime.fromtimestamp(
@@ -64,7 +64,7 @@ def http_sink(httpx_mock: HTTPXMock):
         ingestion_key="your_ingestion_key",
         ingestion_url=endpoint,
     )
-    return build_http_sink(output_config, integration_prefix="")
+    return build_http_sink(output_config, slaos_key="")
 
 
 @pytest.fixture

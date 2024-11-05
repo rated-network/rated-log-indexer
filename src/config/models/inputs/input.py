@@ -1,8 +1,9 @@
 from enum import Enum
 
-from pydantic import BaseModel, model_validator, Field, StrictStr
+from pydantic import BaseModel, model_validator, StrictStr
 from typing import Optional
 
+from src.config.models.inputs.prometheus import PrometheusConfig
 from src.config.models.offset import OffsetYamlConfig
 from src.config.models.filters import FiltersYamlConfig
 from src.config.models.inputs.cloudwatch import CloudwatchConfig
@@ -12,6 +13,7 @@ from src.config.models.inputs.datadog import DatadogConfig
 class IntegrationTypes(str, Enum):
     CLOUDWATCH = "cloudwatch"
     DATADOG = "datadog"
+    PROMETHEUS = "prometheus"
 
 
 class InputTypes(str, Enum):
@@ -20,9 +22,7 @@ class InputTypes(str, Enum):
 
 
 class InputYamlConfig(BaseModel):
-    integration_prefix: StrictStr = Field(
-        default="", description="Prefix for the integration."
-    )
+    slaos_key: StrictStr
     integration: IntegrationTypes
     type: InputTypes
     filters: Optional[FiltersYamlConfig] = None
@@ -30,6 +30,7 @@ class InputYamlConfig(BaseModel):
 
     cloudwatch: Optional[CloudwatchConfig] = None
     datadog: Optional[DatadogConfig] = None
+    prometheus: Optional[PrometheusConfig] = None
 
     @model_validator(mode="before")
     def validate_filters_requirement(cls, values):

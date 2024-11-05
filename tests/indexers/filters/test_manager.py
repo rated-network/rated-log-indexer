@@ -30,7 +30,7 @@ def test_replace_special_characters():
         ],
     )
     filter_manager = FilterManager(
-        filter_config=filters, integration_prefix="test", input_type=InputTypes.LOGS
+        filter_config=filters, slaos_key="test", input_type=InputTypes.LOGS
     )
     assert (
         filter_manager._replace_special_characters("HelloWorld123") == "HelloWorld123"
@@ -45,6 +45,7 @@ def test_replace_special_characters():
     )
     assert filter_manager._replace_special_characters("H@ello123!!") == "H_ello123__"
     assert filter_manager._replace_special_characters("Hello😊") == "Hello_"
+    assert filter_manager._replace_special_characters("api/path") == "api/path"
 
 
 def test_filter_manager_parsing_metrics(test_metrics):
@@ -69,7 +70,7 @@ def test_filter_manager_parsing_metrics(test_metrics):
     )
     filter_manager = FilterManager(
         filter_config=filters,
-        integration_prefix="metrics_test",
+        slaos_key="metrics_test",
         input_type=InputTypes.METRICS,
     )
 
@@ -83,3 +84,17 @@ def test_filter_manager_parsing_metrics(test_metrics):
         assert (
             len(metric.values["environment"]) == 64
         ), "Environment field should be hashed"
+
+
+def test_parsing_metrics_no_filter(test_metrics):
+    filter_manager = FilterManager(
+        filter_config=None,
+        slaos_key="metrics_test",
+        input_type=InputTypes.METRICS,
+    )
+    parsed_metrics = [
+        filter_manager.parse_and_filter_metrics(metric) for metric in test_metrics
+    ]
+    print(parsed_metrics)
+
+    assert len(parsed_metrics) == 5

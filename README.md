@@ -6,7 +6,7 @@
 Index logs and metrics from various monitoring solutions for ingestion to Rated slaOS.
 
 [![pre-commit enabled](https://img.shields.io/badge/pre--commit-enabled-brightgreen.svg)](https://github.com/pre-commit/pre-commit)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: Rated License](https://img.shields.io/badge/License-Custom-brightgreen.svg)](URL-to-your-custom-license)
 [![GitHub issues](https://img.shields.io/github/issues/rated-network/rated-log-indexer)]()
 
 ## Introduction
@@ -53,7 +53,7 @@ The `rated-config.yaml` file is structured into four main sections:
 3. **offset**: Configure how to track the last processed data point.
 4. **secrets**: Set up secrets management (optional, but recommended for production).
 
-Refer to the `examples` folder for sample configurations of each section.
+Refer to the `templates` folder for sample configurations of each section.
 
 ## Quickstart
 

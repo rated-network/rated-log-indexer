@@ -22,28 +22,23 @@ class RatedIndexerYamlConfig(BaseModel):
     sentry: Optional[SentryYamlConfig] = None
 
     @model_validator(mode="after")
-    def check_integration_prefixes(cls, values):
+    def check_slaos_keyes(cls, values):
         if not hasattr(values, "_duplicate_warning_logged"):
             values._duplicate_warning_logged = False
 
-        integration_prefixes = [input.integration_prefix for input in values.inputs]
+        slaos_keyes = [input.slaos_key for input in values.inputs]
 
-        duplicates = set(
-            [x for x in integration_prefixes if integration_prefixes.count(x) > 1]
-        )
+        duplicates = set([x for x in slaos_keyes if slaos_keyes.count(x) > 1])
         if duplicates and not values._duplicate_warning_logged:
             values._duplicate_warning_logged = True
             logger.warning(
-                f"Duplicate integration_prefix values found: {', '.join(duplicates)}. Please make sure this is the intended behavior. This will send data from multiple integrations to the same datastream `key`."
+                f"Duplicate slaos_key values found: {', '.join(duplicates)}. Please make sure this is the intended behavior. This will send data from multiple integrations to the same datastream `key`."
             )
 
         for _input in values.inputs:
-            if (
-                _input.integration_prefix is None
-                or _input.integration_prefix.strip() == ""
-            ):
+            if _input.slaos_key is None or _input.slaos_key.strip() == "":
                 logger.warning(
-                    "Empty integration_prefix found in input configuration. Consider providing a value."
+                    "Empty slaos_key found in input configuration. Consider providing a value."
                 )
 
         return values

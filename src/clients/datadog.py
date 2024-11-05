@@ -44,7 +44,7 @@ DATADOG_EPOCH_LIMIT = 20_000
 logger = structlog.get_logger(__name__)
 
 
-class DatadogInputs(str, Enum):
+class DatadogSupportedInputTypes(str, Enum):
     LOGS = "logs"
     METRICS = "metrics"
 
@@ -76,16 +76,16 @@ class DatadogClient:
     @stamina.retry(on=DatadogClientError)
     def make_api_call(
         self,
-        call_type: DatadogInputs,
+        call_type: DatadogSupportedInputTypes,
         request_body: Union[LogsListRequest, TimeseriesFormulaQueryRequest],
     ) -> Union[LogsListResponse, Dict[str, Any]]:
         try:
-            if call_type == DatadogInputs.LOGS and isinstance(
+            if call_type == DatadogSupportedInputTypes.LOGS and isinstance(
                 request_body, LogsListRequest
             ):
                 response = self.logs_api.list_logs(body=request_body)
                 return response
-            elif call_type == DatadogInputs.METRICS and isinstance(
+            elif call_type == DatadogSupportedInputTypes.METRICS and isinstance(
                 request_body, TimeseriesFormulaQueryRequest
             ):
                 response = self.metrics_api.query_timeseries_data(
@@ -150,7 +150,9 @@ class DatadogClient:
             )
 
             try:
-                response = self.make_api_call(DatadogInputs.LOGS, request_body)
+                response = self.make_api_call(
+                    DatadogSupportedInputTypes.LOGS, request_body
+                )
 
                 logs = response.get("data", [])
                 data = [log.to_dict() for log in logs]
@@ -259,7 +261,7 @@ class DatadogClient:
         )
 
         try:
-            response = self.make_api_call(DatadogInputs.METRICS, request)
+            response = self.make_api_call(DatadogSupportedInputTypes.METRICS, request)
 
             if isinstance(response, dict):
                 data = self._parse_metrics_response(response)

@@ -7,7 +7,7 @@ This guide explains how to configure the slaOS indexer for basic log ingestion f
 ```yaml
 inputs:
   - integration: cloudwatch
-    integration_prefix: cloudwatch_logs
+    slaos_key: cloudwatch_logs
     type: logs
     cloudwatch:
       region: us-east-1

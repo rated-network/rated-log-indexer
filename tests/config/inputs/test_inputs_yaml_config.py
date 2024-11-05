@@ -5,10 +5,10 @@ from src.config.models.inputs.input import InputTypes
 from src.config.manager import RatedIndexerYamlConfig
 
 
-def test_different_integration_prefixes_no_error(valid_config_dict):
+def test_different_slaos_keyes_no_error(valid_config_dict):
     valid_config_dict["inputs"].append(valid_config_dict["inputs"][0].copy())
-    valid_config_dict["inputs"][0]["integration_prefix"] = "prefix1"
-    valid_config_dict["inputs"][1]["integration_prefix"] = "prefix2"
+    valid_config_dict["inputs"][0]["slaos_key"] = "prefix1"
+    valid_config_dict["inputs"][1]["slaos_key"] = "prefix2"
 
     try:
         RatedIndexerYamlConfig(**valid_config_dict)

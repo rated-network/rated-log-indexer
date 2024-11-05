@@ -99,7 +99,7 @@ class MetricEntry:
     value: float
     organization_id: str
     event_timestamp: datetime
-    labels: Optional[Dict[str, Any]] = None
+    labels: Optional[Dict] = None
 
     @classmethod
     def from_cloudwatch_metric(cls, metric: Dict[str, Any]) -> "MetricEntry":
@@ -119,10 +119,43 @@ class MetricEntry:
             event_timestamp=from_milliseconds(metric["timestamp"]),
         )
 
+    @classmethod
+    def from_prometheus_metric(cls, metric: Dict[str, Any]) -> "MetricEntry":
+        """
+        Convert a Prometheus metric to a MetricEntry.
+
+        Args:
+            metric: Dictionary containing metric data from the Prometheus client
+
+        Example input:
+        {
+            "organization_id": "customer123",
+            "timestamp": datetime(2024, 1, 1, 12, 0),
+            "value": 42.5,
+            "slaos_metric_name": "http_request_rate",
+            "labels": {
+                "instance": "web-server-01",
+                "job": "api-server",
+                "customer_id": "customer123",
+                "environment": "production"
+            }
+        }
+
+        Returns:
+            MetricEntry: Standardized metric entry for the indexer
+        """
+        return cls(
+            organization_id=metric["organization_id"],
+            event_timestamp=metric["timestamp"],
+            value=metric["value"],
+            metric_name=metric["slaos_metric_name"],
+            labels=metric["labels"],
+        )
+
 
 @dataclass
 class FilteredEvent:
-    integration_prefix: str
+    slaos_key: str
     idempotency_key: str
     event_timestamp: datetime
     organization_id: str

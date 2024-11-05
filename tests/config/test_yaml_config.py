@@ -2,6 +2,10 @@ import pytest
 import os
 from unittest.mock import mock_open, patch
 
+import yaml
+from pydantic import ValidationError
+from rated_exporter_sdk.providers.prometheus.types import Step, TimeUnit  # type: ignore
+
 from src.config.manager import ConfigurationManager, RatedIndexerYamlConfig
 from src.config.models.offset import OffsetYamlConfig
 from src.config.models.inputs.input import InputYamlConfig
@@ -94,3 +98,41 @@ def test_get_config_missing_input_config(valid_config_dict):
             'Configuration for input source "cloudwatch" is not found. Please add input configuration for cloudwatch.'
             in error_message
         )
+
+
+@pytest.mark.parametrize(
+    "step_value, step_unit, should_pass",
+    [
+        (30, TimeUnit.SECONDS, True),
+        (15, TimeUnit.SECONDS, True),
+        (20, TimeUnit.SECONDS, True),
+        (500, TimeUnit.MILLISECONDS, False),
+        (45, TimeUnit.SECONDS, False),
+        (90, TimeUnit.SECONDS, False),
+        (1, TimeUnit.MINUTES, True),
+        (750, TimeUnit.MILLISECONDS, False),
+    ],
+)
+def test_prometheus_config_step_validation(
+    valid_prometheus_config_dict, postgres_container, step_value, step_unit, should_pass
+):
+    # Modify the step in the config dictionary
+    config_dict = valid_prometheus_config_dict.copy()
+    config_dict["inputs"][0]["prometheus"]["queries"][0]["step"] = {
+        "value": step_value,
+        "unit": step_unit.value,
+    }
+
+    # Convert to YAML
+    yaml_content = yaml.dump(config_dict)
+
+    with patch("builtins.open", mock_open(read_data=yaml_content)):
+        with patch.object(os.path, "exists", return_value=True):
+            if should_pass:
+                config = RatedIndexerYamlConfig(**config_dict)
+                assert config.inputs[0].prometheus.queries[0].step == Step(
+                    value=step_value, unit=step_unit
+                )
+            else:
+                with pytest.raises(ValidationError):
+                    RatedIndexerYamlConfig(**config_dict)

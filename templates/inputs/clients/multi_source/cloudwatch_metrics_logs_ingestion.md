@@ -7,7 +7,7 @@ This guide explains how to configure the slaOS indexer for ingesting both logs a
 ```yaml
 inputs:
   - integration: cloudwatch
-    integration_prefix: cloudwatch_metrics
+    slaos_key: cloudwatch_metrics
     type: metrics
     cloudwatch:
       region: us-east-1
@@ -28,7 +28,7 @@ inputs:
     offset: <offset_config>
 
   - integration: datadog
-    integration_prefix: datadog_metrics
+    slaos_key: datadog_metrics
     type: metrics
     datadog:
       site: datadoghq.com

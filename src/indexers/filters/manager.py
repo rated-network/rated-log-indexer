@@ -21,13 +21,13 @@ class FilterManager:
     def __init__(
         self,
         filter_config: Optional[FiltersYamlConfig],
-        integration_prefix: str,
+        slaos_key: str,
         input_type: InputTypes,
     ):
         self.log_parser = LogParser()
         self.input_type = input_type
         self.filter_config = filter_config
-        self.integration_prefix = integration_prefix
+        self.slaos_key = slaos_key
         self._initialize_parser()
 
     def _initialize_parser(self):
@@ -57,9 +57,10 @@ class FilterManager:
     @staticmethod
     def _replace_special_characters(input_string: str) -> str:
         """
-        Replace all special characters in the input string with underscores.
+        Replace all special characters in the input string with underscores,
+        except for forward slashes (/).
         """
-        return re.sub(r"\W", "_", input_string, flags=re.UNICODE)
+        return re.sub(r"[^\w/]", "_", input_string, flags=re.UNICODE)
 
     def parse_and_filter_log(self, log_entry: LogEntry) -> Optional[FilteredEvent]:
         """
@@ -71,6 +72,11 @@ class FilterManager:
             )
             fields = parsed_log.parsed_fields
             if not fields or not fields.get("organization_id"):
+                logger.warning(
+                    "Organization ID is missing, please update the filter logic to include `organization_id`",
+                    parsed_fields=parsed_log.parsed_fields,
+                    log_content=log_entry.content,
+                )
                 return None
 
             validated_fields = {
@@ -79,17 +85,17 @@ class FilterManager:
             }
 
             return FilteredEvent(
-                integration_prefix=self.integration_prefix,
+                slaos_key=self.slaos_key,
                 idempotency_key=log_entry.log_id,
                 event_timestamp=log_entry.event_timestamp,
-                organization_id=parsed_log.parsed_fields.get(
-                    "organization_id", "MISSING_organization_id"
-                ),
+                organization_id=parsed_log.parsed_fields.get("organization_id"),
                 values=validated_fields,
             )
 
         except Exception as e:
-            logger.error("Parsing error", log_content=log_entry.content, error=str(e))
+            logger.error(
+                "Log parsing error", log_content=log_entry.content, error=str(e)
+            )
             return None
 
     def parse_and_filter_metrics(
@@ -97,42 +103,55 @@ class FilterManager:
     ) -> Optional[FilteredEvent]:
         """
         Returns parsed fields dictionary from the metrics entry if the metrics entry is successfully parsed and filtered.
+
+        The method handles three cases:
+        1. Labels with filter config: Parse using log parser with version
+        2. Labels without filter config: Use labels directly with character replacement
+        3. No labels: Use only metric name and value
         """
         try:
+            base_values = {
+                self._replace_special_characters(
+                    metrics_entry.metric_name
+                ): metrics_entry.value
+            }
             validated_fields = {}
             if metrics_entry.labels:
-                parsed_metric = self.log_parser.parse_log(
-                    metrics_entry.labels, version=self.filter_config.version  # type: ignore
-                )
-                fields = parsed_metric.parsed_fields
+                if self.filter_config:
+                    parsed_metric = self.log_parser.parse_log(
+                        metrics_entry.labels,
+                        version=self.filter_config.version,  # type: ignore
+                    )
+                    fields = parsed_metric.parsed_fields
 
-                if not fields or not fields.get("organization_id"):
-                    return None
+                    if not fields:
+                        logger.info("No fields found in parsed metric")
+                        return None
+                else:
+                    fields = metrics_entry.labels
 
                 validated_fields = {
-                    self._replace_special_characters(k): v
-                    for k, v in parsed_metric.parsed_fields.items()
+                    self._replace_special_characters(k): v for k, v in fields.items()
                 }
+
+            values = {**base_values, **validated_fields}
 
             idempotency_key = generate_idempotency_key(
                 event_timestamp=metrics_entry.event_timestamp,
                 organization_id=metrics_entry.organization_id,
-                values={metrics_entry.metric_name: metrics_entry.value},
+                values=values,
             )
 
             return FilteredEvent(
-                integration_prefix=self.integration_prefix,
+                slaos_key=self.slaos_key,
                 idempotency_key=idempotency_key,
                 event_timestamp=metrics_entry.event_timestamp,
                 organization_id=metrics_entry.organization_id,
-                values={
-                    self._replace_special_characters(
-                        metrics_entry.metric_name
-                    ): metrics_entry.value,
-                    **validated_fields,
-                },
+                values=values,
             )
 
         except Exception as e:
-            logger.error("Parsing error", metric_content=metrics_entry, error=str(e))
+            logger.error(
+                "Metric parsing error", metric_content=metrics_entry, error=str(e)
+            )
             return None

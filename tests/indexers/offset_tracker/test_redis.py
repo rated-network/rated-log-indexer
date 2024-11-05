@@ -45,7 +45,7 @@ def redis_client(mock_config_data):
 
 @pytest.fixture
 def tracker(mock_config_data, redis_client):
-    return RedisOffsetTracker(integration_prefix="test", config=mock_config_data)
+    return RedisOffsetTracker(slaos_key="test", config=mock_config_data)
 
 
 def test_redis_offset_tracker_init(tracker, mock_config_data):
@@ -83,4 +83,4 @@ def test_redis_offset_tracker_invalid_type(mock_config_data):
         ValueError,
         match="Offset tracker type is not set to 'redis' in the configuration",
     ):
-        RedisOffsetTracker(integration_prefix="test", config=invalid_config)
+        RedisOffsetTracker(slaos_key="test", config=invalid_config)

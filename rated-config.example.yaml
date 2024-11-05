@@ -2,7 +2,7 @@
 
 inputs:
   - integration: cloudwatch
-    integration_prefix: rated_example
+    slaos_key: rated_example
     type: logs
     cloudwatch:
       region: us-east-1

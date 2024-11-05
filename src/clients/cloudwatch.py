@@ -18,6 +18,11 @@ from src.utils.time_conversion import from_milliseconds
 logger = structlog.get_logger(__name__)
 
 
+class CloudwatchSupportedInputTypes(str, Enum):
+    LOGS = "logs"
+    METRICS = "metrics"
+
+
 class CloudwatchClientError(Exception):
     """Custom exception for Cloudwatch Client errors."""
 
@@ -26,7 +31,7 @@ class CloudwatchClientError(Exception):
         super().__init__(self.message)
 
 
-class ClientType(Enum):
+class AWSBoto3ClientType(Enum):
     LOGS = "logs"
     CLOUDWATCH = "cloudwatch"
 
@@ -36,23 +41,18 @@ class QueryLimit(Enum):
     METRICS = 100_001  # 100_000 is the maximum number of data points we are querying in a single request
 
 
-class CloudwatchInputs(str, Enum):
-    LOGS = "logs"
-    METRICS = "metrics"
-
-
 class CloudwatchClient:
     def __init__(self, config: CloudwatchConfig, limit: Optional[PositiveInt] = None):
         self.config = config
 
-        self.logs_client = self._get_client(ClientType.LOGS)
+        self.logs_client = self._get_client(AWSBoto3ClientType.LOGS)
         self.logs_query_limit = limit if limit else QueryLimit.LOGS.value
 
-        self.metrics_client = self._get_client(ClientType.CLOUDWATCH)
+        self.metrics_client = self._get_client(AWSBoto3ClientType.CLOUDWATCH)
         self.metrics_query_limit = limit if limit else QueryLimit.METRICS.value
         self.metrics_query_chunk_size = 500
 
-    def _get_client(self, client_type: ClientType) -> BaseClient:
+    def _get_client(self, client_type: AWSBoto3ClientType) -> BaseClient:
         return client(
             client_type.value,
             config=Config(
@@ -64,13 +64,13 @@ class CloudwatchClient:
 
     @stamina.retry(on=CloudwatchClientError)
     def make_api_call(
-        self, call_type: CloudwatchInputs, params: Dict[str, Any]
+        self, call_type: CloudwatchSupportedInputTypes, params: Dict[str, Any]
     ) -> Dict[str, Any]:
         try:
-            if call_type == CloudwatchInputs.LOGS:
+            if call_type == CloudwatchSupportedInputTypes.LOGS:
                 response = self.logs_client.filter_log_events(**params)
                 return response
-            elif call_type == CloudwatchInputs.METRICS:
+            elif call_type == CloudwatchSupportedInputTypes.METRICS:
                 response = self.metrics_client.get_metric_data(**params)
                 return response
             else:
@@ -127,7 +127,9 @@ class CloudwatchClient:
                 params["nextToken"] = next_token
 
             try:
-                events_batch = self.make_api_call(CloudwatchInputs.LOGS, params)
+                events_batch = self.make_api_call(
+                    CloudwatchSupportedInputTypes.LOGS, params
+                )
                 logs = events_batch.get("events", [])
                 batch_count = len(logs)
                 total_logs += batch_count
@@ -232,7 +234,9 @@ class CloudwatchClient:
                     params["NextToken"] = next_token
 
                 try:
-                    response = self.make_api_call(CloudwatchInputs.METRICS, params)
+                    response = self.make_api_call(
+                        CloudwatchSupportedInputTypes.METRICS, params
+                    )
                     metric_data_results = response.get("MetricDataResults", {})
 
                     if not metric_data_results:

@@ -28,14 +28,14 @@ class SlaOsApiBody:
 
     @classmethod
     def parse_and_prefix_values(
-        cls, raw_values: Any, integration_prefix: Optional[StrictStr]
+        cls, raw_values: Any, slaos_key: Optional[StrictStr]
     ) -> Dict[str, Any]:
         """
-        Parse the values if they're a string, and add the integration prefix to the keys.
+        Parse the values if they're a string, and add the slaOS key to the keys.
 
         Args:
             raw_values (Any): The values to parse and prefix.
-            integration_prefix (str): The prefix to add to each key.
+            slaos_key (str): The prefix to add to each key.
 
         Returns:
             Dict[str, Any]: A dictionary with prefixed keys.
@@ -52,13 +52,13 @@ class SlaOsApiBody:
             logger.error(f"Unexpected type for values: {type(raw_values)}")
             return {}
 
-        if integration_prefix and integration_prefix.strip():
-            return {f"{integration_prefix.strip()}_{k}": v for k, v in values.items()}
+        if slaos_key and slaos_key.strip():
+            return {f"{slaos_key.strip()}_{k}": v for k, v in values.items()}
         return values
 
     @classmethod
     def from_filtered_event(
-        cls, event: FilteredEvent, key: str, integration_prefix: str
+        cls, event: FilteredEvent, key: str, slaos_key: str
     ) -> "SlaOsApiBody":
         """
         Create a SlaOsApiBody instance from a FilteredEvent.
@@ -66,7 +66,7 @@ class SlaOsApiBody:
         Args:
             event (FilteredEvent): The filtered event to convert.
             key (str): The key to use for the SlaOsApiBody.
-            integration_prefix (str): The integration prefix to apply to values.
+            slaos_key (str): The slaOS key to apply to values.
 
         Returns:
             SlaOsApiBody: A new instance of SlaOsApiBody.
@@ -76,7 +76,7 @@ class SlaOsApiBody:
             timestamp=event.event_timestamp.strftime("%Y-%m-%dT%H:%M:%SZ"),
             key=key,
             idempotency_key=event.idempotency_key,
-            values=cls.parse_and_prefix_values(event.values, integration_prefix),
+            values=cls.parse_and_prefix_values(event.values, slaos_key),
         )
 
 
@@ -89,7 +89,7 @@ class _HTTPSinkPartition(StatelessSinkPartition):
     def __init__(
         self,
         config: RatedOutputConfig,
-        integration_prefix: str,
+        slaos_key: str,
         worker_index: int,
     ) -> None:
         """
@@ -101,7 +101,7 @@ class _HTTPSinkPartition(StatelessSinkPartition):
         """
         super().__init__()
         self.worker_index = worker_index
-        self.integration_prefix = integration_prefix
+        self.slaos_key = slaos_key
         self.config = config
         self.client = httpx.Client()
         self.max_concurrent_requests = 5
@@ -131,21 +131,17 @@ class _HTTPSinkPartition(StatelessSinkPartition):
             event_data = {
                 "organization_id": item.organization_id,
                 "timestamp": item.event_timestamp.strftime("%Y-%m-%dT%H:%M:%SZ"),
-                "key": (
-                    item.integration_prefix
-                    if item.integration_prefix
-                    else "a_valid_source"
-                ),
+                "key": (item.slaos_key if item.slaos_key else "a_valid_source"),
                 "idempotency_key": item.idempotency_key,
             }
             prefixed_values: dict = SlaOsApiBody.parse_and_prefix_values(
                 item.values, None
             )
             reserved_keys = [
-                f"{item.integration_prefix}_organization_id",
-                f"{item.integration_prefix}_timestamp",
-                f"{item.integration_prefix}_key",
-                f"{item.integration_prefix}_idempotency_key",
+                f"{item.slaos_key}_organization_id",
+                f"{item.slaos_key}_timestamp",
+                f"{item.slaos_key}_key",
+                f"{item.slaos_key}_idempotency_key",
                 "key",
                 "organization_id",
                 "timestamp",
@@ -235,7 +231,7 @@ class _HTTPSinkPartition(StatelessSinkPartition):
         """
         Send a batch of events to the HTTP endpoint.
         """
-        integration_prefixes = {item.integration_prefix for item in items}
+        slaos_keyes = {item.slaos_key for item in items}
         try:
             body = self._compose_body(items)
             headers = self._compose_headers()
@@ -247,21 +243,21 @@ class _HTTPSinkPartition(StatelessSinkPartition):
                 batch_size=len(items),
                 redacted_url=redacted_url,
                 worker_index=self.worker_index,
-                integration_prefix=integration_prefixes,
+                slaos_key=slaos_keyes,
             )
 
         except httpx.HTTPError as e:
             print(response.text)
             logger.error(
                 f"Worker {self.worker_index} HTTP error sending batch: {e}",
-                integration_prefix=integration_prefixes,
+                slaos_key=slaos_keyes,
                 batch_size=len(items),
             )
             raise
         except Exception as e:
             logger.error(
                 f"Worker {self.worker_index} error sending batch: {e}",
-                integration_prefix=integration_prefixes,
+                slaos_key=slaos_keyes,
                 batch_size=len(items),
             )
             raise
@@ -278,14 +274,14 @@ class _HTTPSinkPartition(StatelessSinkPartition):
 
 
 class HTTPSink(DynamicSink):
-    def __init__(self, config: RatedOutputConfig, integration_prefix: str) -> None:
+    def __init__(self, config: RatedOutputConfig, slaos_key: str) -> None:
         super().__init__()
         self.config = config
-        self.integration_prefix = integration_prefix
+        self.slaos_key = slaos_key
 
     def build(self, step_id: str, worker_index: int, worker_count: int):
-        return _HTTPSinkPartition(self.config, self.integration_prefix, worker_index)
+        return _HTTPSinkPartition(self.config, self.slaos_key, worker_index)
 
 
-def build_http_sink(config: RatedOutputConfig, integration_prefix: str) -> HTTPSink:
-    return HTTPSink(config=config, integration_prefix=integration_prefix)
+def build_http_sink(config: RatedOutputConfig, slaos_key: str) -> HTTPSink:
+    return HTTPSink(config=config, slaos_key=slaos_key)

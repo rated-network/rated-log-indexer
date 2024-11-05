@@ -1,0 +1,11 @@
+FROM python:3.9-slim
+
+WORKDIR /app
+
+RUN pip install --no-cache-dir prometheus-client==0.19.0
+
+COPY fake_app.py .
+
+EXPOSE 8000
+
+CMD ["python", "fake_app.py"]
