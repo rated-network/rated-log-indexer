@@ -32,9 +32,12 @@ from src.config.models.offset import (
 from src.config.models.output import (
     RatedOutputConfig,
 )
+from dotenv import load_dotenv
 
 PROMETHEUS_PORT = 9090
 METRICS_GENERATOR_APP_PORT = 8000
+
+load_dotenv()
 
 
 def wait_for_http_service(url: str, timeout: int = 10) -> bool:
@@ -77,9 +80,10 @@ def fake_app_url(fake_app_container: DockerContainer):
 def fake_app_container(
     docker_client: docker.DockerClient, docker_network: Network
 ) -> Generator[DockerContainer, None, None]:
+
     app_tag = "fake-app:latest"
     docker_client.images.build(
-        path=".",
+        path="tests/indexers/dataflow/prometheus",
         dockerfile="Dockerfile.fake_app",
         tag=app_tag,
         rm=True,
