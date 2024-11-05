@@ -1,6 +1,5 @@
 import json
 import time
-from typing import Tuple
 
 from bytewax.testing import run_main, TestingSource
 from pydantic_core import Url
@@ -24,14 +23,12 @@ from src.indexers.sinks.rated import build_http_sink
 class TestPrometheusDataflow:
     def test_prometheus_dataflow_integration(
         self,
-        fake_app: Tuple[str, int],
-        prometheus: str,
         input_config: InputYamlConfig,
         output_config: RatedOutputConfig,
         httpx_mock: HTTPXMock,
     ):
         """Test the Prometheus dataflow with real services."""
-        time.sleep(15)
+        # time.sleep(15)
 
         current_time = int(time.time() * 1000)
         mock_input = TestingSource(
