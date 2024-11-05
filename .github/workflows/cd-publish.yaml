@@ -1,0 +1,34 @@
+name: CD
+
+on:
+  release:
+    types: [released]
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v4
+
+      - name: Get version number
+        id: vars
+        run: |
+          >>$GITHUB_ENV echo "IMAGE_NAME=ratedlabs/rated-log-indexer"
+          >>$GITHUB_ENV echo "RELEASE_VERSION=${GITHUB_REF#refs/tags/v}"
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+
+      - name: Build Docker image
+        run: |
+          docker build -t "${IMAGE_NAME}:latest" -t "${IMAGE_NAME}:${RELEASE_VERSION}" .
+
+      - name: Push Docker image to Docker Hub
+        run: |
+          docker push "${IMAGE_NAME}:${RELEASE_VERSION}"
+          docker push "${IMAGE_NAME}:latest"
