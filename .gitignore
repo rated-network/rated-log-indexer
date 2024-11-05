@@ -53,3 +53,5 @@ rated-config.yaml
 
 secrets/
 tmp_prometheus_config/
+.venv/
+venv/

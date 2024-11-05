@@ -2,11 +2,26 @@ container_tag ?= rated-log-indexer-indexer
 container_name ?= rated_log_indexer
 redis_name ?= redis
 network_name ?= rated_network
+pip := .venv/bin/pip
+pytest := .venv/bin/pytest
+precommit := .venv/bin/pre-commit
+
+.DEFAULT_GOAL := help
 
 ##@ 🚀  Getting started
 .PHONY: run
-run: clean start ## Ready, set, go!
+run: clean start ## Start the project locally in a container
 
+.PHONY: ready
+ready: $(pip)  ## Setup a local dev environment (virtualenv)
+	@$(precommit) install
+	@$(precommit) install --hook-type commit-msg
+
+.PHONY: help
+help: ## Show this help
+	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) }' $(MAKEFILE_LIST)
+
+##@ 🐳  Docker helpers
 .PHONY: clean
 clean: ## Clean up existing containers and network
 	@echo "Cleaning up existing containers..."
@@ -17,13 +32,6 @@ clean: ## Clean up existing containers and network
 
 .PHONY: start
 start: ## Start everything fresh
-	@docker network create $(network_name) 2>/dev/null || true
-	@echo "Starting Redis..."
-	@docker run -d --rm \
-		--name $(redis_name) \
-		--network $(network_name) \
-		redis:alpine
-	@sleep 2
 	@echo "Building application..."
 	@docker build -t $(container_tag) .
 	@echo "Starting application..."
@@ -42,27 +50,23 @@ up: ## Start services
 	@docker run -d --rm --name $(container_name) $(container_tag)
 
 .PHONY: down
-down: clean
+down: clean ## Alias for `clean`
 
 .PHONY: remove
-remove: clean
+remove: clean ## Stop containers and remove images
 	@docker rmi $(container_tag) || true
 
 .PHONY: logs
-logs: ## Output container logs.
+logs: ## Output container logs
 	@docker logs --follow --tail 50 $(container_name)
 
-.PHONY: ready
-ready: ## Get ready to rumble
-	@pre-commit install
-	@pre-commit install --hook-type commit-msg
+##@ 🐍  Local dev helpers
+$(pip): requirements.txt
+	@python3.12 -m venv .venv
+	@$(pip) install --upgrade pip
+	@$(pip) install -r requirements.txt
+	@touch $(pip)
 
 .PHONY: test
-test:  ## Run tests in Docker, and optionally provide a path to a specific test file or directory
-	@pytest $(path) -vv
-
-.PHONY: help
-help: ## Show this help
-	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) }' $(MAKEFILE_LIST)
-
-.DEFAULT_GOAL := help
+test: $(pip) ## Run tests in a local virtualenv, and optionally provide a path to a specific test file or directory
+	@$(pytest) $(path) -vv
