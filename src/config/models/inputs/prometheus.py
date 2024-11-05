@@ -10,7 +10,7 @@ from pydantic import (
     PositiveFloat,
 )
 
-from rated_exporter_sdk.providers.prometheus.types import Step  # type: ignore
+from rated_exporter_sdk.providers.prometheus.types import Step, TimeUnit  # type: ignore
 
 logger = structlog.getLogger(__name__)
 
@@ -35,6 +35,35 @@ class PrometheusQueryConfig(BaseModel):
                 else:
                     values[field] = stripped_value
         return values
+
+    @model_validator(mode="after")
+    def validate_step(self) -> "PrometheusQueryConfig":
+        """
+        Ensure that the step:
+        1. Is less than or equal to 60 seconds
+        2. Divides 60 seconds evenly when converted to seconds
+        """
+        if self.step is not None:
+            # Convert to milliseconds first for accurate integer conversion
+            step_ms = (
+                self.step.value
+                if self.step.unit == TimeUnit.MILLISECONDS
+                else (
+                    self.step.value * 1000
+                    if self.step.unit == TimeUnit.SECONDS
+                    else self.step.value * 60000
+                )
+            )
+
+            step_in_seconds = step_ms // 1000
+
+            if step_in_seconds > 60 or step_in_seconds < 1:
+                raise ValueError("Step must be between 1 and 60 seconds")
+
+            if not (60 % step_in_seconds == 0):
+                raise ValueError("Step must evenly divide 60 seconds")
+
+        return self
 
     @model_validator(mode="after")
     def validate_org_id_fallback(self) -> "PrometheusQueryConfig":
