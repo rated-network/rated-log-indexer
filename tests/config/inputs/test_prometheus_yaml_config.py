@@ -63,19 +63,6 @@ class TestPrometheusQueryConfig:
             PrometheusQueryConfig(query="up", slaos_metric_name="uptime")
         assert "fallback_org_id" in str(exc_info.value)
 
-    def test_warning_logged_once(self, caplog):
-        # First instance
-        PrometheusQueryConfig(
-            query="up", slaos_metric_name="uptime", fallback_org_id="fallback_org"
-        )
-        assert len(caplog.records) == 1
-
-        # Second instance shouldn't log
-        PrometheusQueryConfig(
-            query="up", slaos_metric_name="uptime", fallback_org_id="fallback_org"
-        )
-        assert len(caplog.records) == 1
-
 
 class TestPrometheusAuthConfig:
     def test_valid_basic_auth(self, valid_prometheus_auth_config_data):

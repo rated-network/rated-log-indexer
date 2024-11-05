@@ -69,12 +69,17 @@ def docker_network(
 
 
 @pytest.fixture(scope="session")
+def fake_app_url(fake_app_container: DockerContainer):
+    return get_container_url(fake_app_container, METRICS_GENERATOR_APP_PORT)
+
+
+@pytest.fixture(scope="session")
 def fake_app_container(
     docker_client: docker.DockerClient, docker_network: Network
 ) -> Generator[DockerContainer, None, None]:
     app_tag = "fake-app:latest"
     docker_client.images.build(
-        path="tests/indexers/dataflow/prometheus",
+        path=".",
         dockerfile="Dockerfile.fake_app",
         tag=app_tag,
         rm=True,
@@ -83,40 +88,38 @@ def fake_app_container(
     container = DockerContainer(app_tag)
     container.with_exposed_ports(METRICS_GENERATOR_APP_PORT)
     container.with_network(docker_network)
+    container.with_name("fake-app")
+    container.with_env("HOSTNAME", "fake-app")
     container.start()
     url = get_container_url(container, METRICS_GENERATOR_APP_PORT)
 
     if not wait_for_http_service(f"{url}/metrics"):
         raise RuntimeError("Fake app failed to start")
 
-    yield container
+    container_ip = container.get_container_host_ip()
+    print(f"Fake app container IP in network: {container_ip}")
 
+    yield container
     container.stop()
 
 
 @pytest.fixture(scope="session")
-def fake_app_url(fake_app_container: DockerContainer):
-    return get_container_url(fake_app_container, METRICS_GENERATOR_APP_PORT)
-
-
-@pytest.fixture(scope="session")
 def prometheus_container(
-    docker_network: Network, fake_app_url: str, fake_app_container: DockerContainer
+    docker_network: Network, fake_app_container: DockerContainer
 ) -> Generator[DockerContainer, None, None]:
-    fake_app_host = fake_app_container.get_container_host_ip()
-    fake_app_port = fake_app_container.get_exposed_port(METRICS_GENERATOR_APP_PORT)
-
     config_dir = Path("tmp_prometheus_config")
     config_dir.mkdir(exist_ok=True)
+
     prometheus_config = f"""
-    global:
-      scrape_interval: 3s
-      evaluation_interval: 3s
-    scrape_configs:
-      - job_name: 'fake_app'
-        static_configs:
-          - targets: ['{fake_app_host}:{fake_app_port}']
-    """
+global:
+  scrape_interval: 3s
+  evaluation_interval: 3s
+scrape_configs:
+  - job_name: 'fake_app'
+    static_configs:
+      - targets: ['fake-app:{METRICS_GENERATOR_APP_PORT}']
+    metrics_path: '/metrics'
+"""
     config_path = config_dir / "prometheus.yml"
     with open(config_path, "w") as f:
         f.write(prometheus_config)
@@ -125,19 +128,46 @@ def prometheus_container(
     container.with_exposed_ports(PROMETHEUS_PORT)
     container.with_command("--config.file=/etc/prometheus/prometheus.yml")
     container.with_network(docker_network)
+    container.with_name("prometheus")
     container.with_volume_mapping(
         host=str(config_path.absolute()),
         container="/etc/prometheus/prometheus.yml",
         mode="ro",
     )
+
+    container.with_env("HOSTNAME", "prometheus")
     container.start()
     url = get_container_url(container, PROMETHEUS_PORT)
 
     if not wait_for_http_service(url):
         raise RuntimeError("Prometheus failed to start")
 
-    yield container
+    def check_prometheus_target():
+        try:
+            response = requests.get(f"{url}/api/v1/targets")
+            targets = response.json()
+            active_targets = targets.get("data", {}).get("activeTargets", [])
+            for target in active_targets:
+                print(
+                    f"Target state: {target.get('health')} - {target.get('labels', {}).get('instance')}"
+                )
+                if target.get("health") == "up":
+                    return True
+            return False
+        except Exception as e:
+            print(f"Error checking Prometheus target: {e}")
+            return False
 
+    start_time = time.time()
+    while time.time() - start_time < 10:
+        if check_prometheus_target():
+            break
+        print("Waiting for Prometheus target to become healthy...")
+        time.sleep(2)
+    else:
+        print("Warning: Prometheus target did not become healthy within timeout")
+
+    yield container
     container.stop()
     shutil.rmtree(config_dir)
 
@@ -163,6 +193,7 @@ def mocked_ingestion_endpoint(httpx_mock: HTTPXMock) -> str:
 @pytest.fixture
 def prometheus_config(prometheus_url: str) -> PrometheusConfig:
     """Create a Prometheus configuration."""
+    print("Prometheus URL", prometheus_url)
     return PrometheusConfig(
         base_url=Url(prometheus_url),
         queries=[

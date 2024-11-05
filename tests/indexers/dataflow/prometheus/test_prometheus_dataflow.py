@@ -28,7 +28,7 @@ class TestPrometheusDataflow:
         httpx_mock: HTTPXMock,
     ):
         """Test the Prometheus dataflow with real services."""
-        # time.sleep(15)
+        time.sleep(15)
 
         current_time = int(time.time() * 1000)
         mock_input = TestingSource(
@@ -63,11 +63,11 @@ class TestPrometheusDataflow:
         run_main(flow)
 
         requests = httpx_mock.get_requests()
-        assert len(requests) > 0, "Should have received requests"
+        assert len(requests) > 0, "Should have sent slaOS requests"
 
         for request in requests:
             data = json.loads(request.content)
-            assert len(data) > 0, "Should have received metrics data"
+            assert len(data) > 0, "Should have sent metrics data"
 
             for item in data:
                 assert "organization_id" in item
