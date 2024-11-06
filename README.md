@@ -20,29 +20,25 @@ Before you begin, ensure you have the following:
 1. A Rated slaOS account. If you don't have one, sign up at [app.rated.co](https://app.rated.co).
 2. Ingestion URL, ID, and key from your Rated [slaOS general settings](https://app.rated.co/settings/general).
 3. Docker plugin installed on your system.
-4. GNU Make installed.
-5. pre-commit installed.
 
-## Installation
+## Quickstart - running locally with Docker
 
 To set up the rated-log-indexer, follow these steps:
 
-1. Clone this repository:
+1. Pull the latest image from Dockerhub:
    ```
-   git clone https://github.com/rated-network/rated-log-indexer.git
-   ```
-
-2. Navigate to the project directory:
-   ```
-   cd rated-log-indexer
+   docker pull ratedlabs/rated-log-indexer
    ```
 
-3. Install required packages and set up the environment:
-   ```
-   make ready
-   ```
+1. Create the `rated-config.yaml` config file by copying [the example config](rated-config.example.yaml), then modifying it following the instructions outlined in [templates](templates). Configure the necessary settings for your intended integrations, as well as the output section.
 
-4. Create a `rated-config.yaml` file in the root of the project, following the format of `rated-config.example.yaml`. Configure the necessary settings for your intended integrations.
+1. Run the container:
+   ```
+   docker run \
+     --volume "$(pwd)"/rated-config.yaml:/indexer/rated-config.yaml \
+     --rm \
+     ratedlabs/rated-log-indexer
+   ```
 
 ## Configuration
 
@@ -55,7 +51,7 @@ The `rated-config.yaml` file is structured into four main sections:
 
 Refer to the `templates` folder for sample configurations of each section.
 
-## Quickstart
+## Local development
 
 To run the indexer:
 
@@ -71,6 +67,7 @@ Currently, the rated-log-indexer supports the following integrations:
 
 - CloudWatch
 - Datadog
+- Prometheus
 
 ## How to Raise Issues
 

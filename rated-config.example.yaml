@@ -29,14 +29,15 @@ inputs:
           field_type: "float"
           path: "took"
     offset:
-      type: redis
-      override_start_from: true
+      type: slaos
+      override_start_from: false
       start_from: 1724803200000
       start_from_type: bigint
-      redis:
-        host: redis
-        port: 6379
-        db: 0
+      slaos:
+        ingestion_id: "xxxxx-xx-xx-xx-xxxxx"
+        ingestion_key: "xxxxx"
+        ingestion_url: "https://api.rated.co/v1/ingest"
+        datastream_key: rated_example
 
 output:
   type: "rated"
