@@ -1,4 +1,5 @@
 import re
+from hashlib import sha256
 from typing import Optional, Dict, Union
 
 import structlog
@@ -110,6 +111,13 @@ class FilterManager:
         """
         return re.sub(r"[^\w/]", "_", input_string, flags=re.UNICODE)
 
+    @staticmethod
+    def _basic_hash(value: str) -> str:
+        """
+        Basic hash function for testing purposes.
+        """
+        return sha256(str(value).encode()).hexdigest()
+
     def parse_and_filter_log(self, log_entry: LogEntry) -> Optional[FilteredEvent]:
         """
         Returns parsed fields dictionary from the log entry if the log entry is successfully parsed and filtered.
@@ -152,6 +160,32 @@ class FilterManager:
                 extra={"log_content": log_entry.content, "error": str(e)},
             )
             return None
+
+    def process_metric_organization_id(self, metrics_entry: MetricEntry) -> str:
+        """
+        Check if the organization identifier field is present in the filter_config.
+        If present and hash is true, hash the organization_id, otherwise return it as is.
+        """
+        if (
+            self.filter_config
+            and isinstance(self.filter_config, MetricFilterConfig)
+            and metrics_entry.organization_identifier
+        ):
+            # Find if the specified field exists in filter config
+            org_id_field = next(
+                (
+                    field
+                    for field in self.filter_config.fields
+                    if field.key == metrics_entry.organization_identifier
+                ),
+                None,
+            )
+
+            # If field exists and hash is true, hash the organization_id
+            if org_id_field and getattr(org_id_field, "hash", False):
+                return self._basic_hash(str(metrics_entry.organization_id))
+
+        return metrics_entry.organization_id
 
     def parse_and_filter_metrics(
         self, metrics_entry: MetricEntry
@@ -202,7 +236,7 @@ class FilterManager:
                 slaos_key=self.slaos_key,
                 idempotency_key=idempotency_key,
                 event_timestamp=metrics_entry.event_timestamp,
-                organization_id=metrics_entry.organization_id,
+                organization_id=self.process_metric_organization_id(metrics_entry),
                 values=values,
             )
 

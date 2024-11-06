@@ -67,6 +67,7 @@ class PrometheusClientWrapper:
 
                     for sample in metric.samples:
                         yield {
+                            "organization_identifier": query_config.organization_identifier,
                             "organization_id": org_id,
                             "timestamp": sample.timestamp,
                             "value": sample.value,
