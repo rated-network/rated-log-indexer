@@ -1,13 +1,13 @@
-from rated_parser.payloads import LogFormat  # type: ignore
-from rated_parser.payloads.inputs import JsonFieldDefinition, FieldType  # type: ignore
+from rated_parser.payloads import LogFormat, MetricFieldDefinition  # type: ignore
+from rated_parser.payloads.log_patterns import JsonFieldDefinition, FieldType  # type: ignore
 
-from src.config.models.filters import FiltersYamlConfig
+from src.config.models.filters import LogFilterConfig, MetricFilterConfig
 from src.config.models.inputs.input import InputTypes
 from src.indexers.filters.manager import FilterManager
 
 
 def test_replace_special_characters():
-    filters = FiltersYamlConfig(
+    filters = LogFilterConfig(
         version=1,
         log_format=LogFormat.JSON,
         log_example={
@@ -49,23 +49,15 @@ def test_replace_special_characters():
 
 
 def test_filter_manager_parsing_metrics(test_metrics):
-    filters = FiltersYamlConfig(
+    filters = MetricFilterConfig(
         version=1,
-        log_format=LogFormat.JSON,
-        log_example={},
         fields=[
-            JsonFieldDefinition(
+            MetricFieldDefinition(
                 key="environment",
-                field_type=FieldType.STRING,
-                path="service",
                 hash=True,
             ),
-            JsonFieldDefinition(
-                key="region", field_type=FieldType.STRING, path="region"
-            ),
-            JsonFieldDefinition(
-                key="organization_id", field_type=FieldType.STRING, path="instance"
-            ),
+            MetricFieldDefinition(key="region"),
+            MetricFieldDefinition(key="organization_id"),
         ],
     )
     filter_manager = FilterManager(
@@ -95,6 +87,5 @@ def test_parsing_metrics_no_filter(test_metrics):
     parsed_metrics = [
         filter_manager.parse_and_filter_metrics(metric) for metric in test_metrics
     ]
-    print(parsed_metrics)
 
     assert len(parsed_metrics) == 5

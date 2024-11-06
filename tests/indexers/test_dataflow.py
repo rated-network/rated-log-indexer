@@ -5,7 +5,7 @@ from unittest.mock import patch, MagicMock
 import pytest
 from bytewax.testing import run_main, TestingSource
 from pytest_httpx import HTTPXMock
-from rated_parser.payloads.inputs import JsonFieldDefinition, LogFormat, FieldType  # type: ignore
+from rated_parser.payloads.log_patterns import JsonFieldDefinition, LogFormat, FieldType  # type: ignore
 from testcontainers.redis import RedisContainer  # type: ignore
 
 from src.config.models.offset import (
@@ -20,7 +20,7 @@ from src.config.models.inputs.datadog import (
     DatadogMetricsConfig,
 )
 from src.indexers.filters.types import LogEntry, MetricEntry
-from src.config.models.filters import FiltersYamlConfig
+from src.config.models.filters import LogFilterConfig
 from src.indexers.filters.manager import FilterManager
 from src.config.models.output import RatedOutputConfig
 from src.config.models.inputs.input import IntegrationTypes, InputTypes, InputYamlConfig
@@ -108,7 +108,7 @@ def test_logs_dataflow(
         ingestion_key="your_ingestion_key",
         ingestion_url=mocked_ingestion_endpoint,
     )
-    filter_config = FiltersYamlConfig(
+    filter_config = LogFilterConfig(
         version=1,
         log_format=LogFormat.JSON,
         log_example={
@@ -302,7 +302,7 @@ def test_multiple_inputs_dataflow(
                 key="offset_tracking",
             ),
         ),
-        filters=FiltersYamlConfig(
+        filters=LogFilterConfig(
             version=1,
             log_format=LogFormat.JSON,
             log_example={
@@ -503,7 +503,7 @@ def test_metrics_logs_inputs_dataflow(
                 key="offset_tracking",
             ),
         ),
-        filters=FiltersYamlConfig(
+        filters=LogFilterConfig(
             version=1,
             log_format=LogFormat.JSON,
             log_example={
