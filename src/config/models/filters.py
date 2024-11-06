@@ -66,7 +66,4 @@ class MetricFilterConfig(BaseFilterConfig):
         if not self.fields:
             raise ValueError("Filter fields cannot be empty")
 
-        if not any(field.key == "organization_id" for field in self.fields):
-            raise ValueError("organization_id field is required in filters")
-
         return self

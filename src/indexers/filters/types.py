@@ -136,7 +136,6 @@ class MetricEntry:
             "labels": {
                 "instance": "web-server-01",
                 "job": "api-server",
-                "customer_id": "customer123",
                 "environment": "production"
             }
         }
