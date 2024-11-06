@@ -99,6 +99,7 @@ class MetricEntry:
     value: float
     organization_id: str
     event_timestamp: datetime
+    organization_identifier: Optional[str] = None
     labels: Optional[Dict] = None
 
     @classmethod
@@ -136,7 +137,6 @@ class MetricEntry:
             "labels": {
                 "instance": "web-server-01",
                 "job": "api-server",
-                "customer_id": "customer123",
                 "environment": "production"
             }
         }
@@ -149,6 +149,7 @@ class MetricEntry:
             event_timestamp=metric["timestamp"],
             value=metric["value"],
             metric_name=metric["slaos_metric_name"],
+            organization_identifier=metric["organization_identifier"],
             labels=metric["labels"],
         )
 

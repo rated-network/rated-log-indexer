@@ -1,11 +1,11 @@
 from enum import Enum
 
 from pydantic import BaseModel, model_validator, StrictStr
-from typing import Optional
+from typing import Optional, Union
 
 from src.config.models.inputs.prometheus import PrometheusConfig
 from src.config.models.offset import OffsetYamlConfig
-from src.config.models.filters import FiltersYamlConfig
+from src.config.models.filters import MetricFilterConfig, LogFilterConfig
 from src.config.models.inputs.cloudwatch import CloudwatchConfig
 from src.config.models.inputs.datadog import DatadogConfig
 
@@ -25,7 +25,7 @@ class InputYamlConfig(BaseModel):
     slaos_key: StrictStr
     integration: IntegrationTypes
     type: InputTypes
-    filters: Optional[FiltersYamlConfig] = None
+    filters: Optional[Union[MetricFilterConfig, LogFilterConfig]] = None
     offset: OffsetYamlConfig
 
     cloudwatch: Optional[CloudwatchConfig] = None

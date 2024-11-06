@@ -1,12 +1,12 @@
 import pytest
 from pydantic import ValidationError
-from rated_parser.payloads.inputs import (  # type: ignore
+from rated_parser.payloads.log_patterns import (  # type: ignore
     JsonFieldDefinition,
     RawTextFieldDefinition,
     FieldType as RatedParserFieldType,
     LogFormat as RatedParserLogFormat,
 )
-from src.config.models.filters import FiltersYamlConfig
+from src.config.models.filters import LogFilterConfig
 
 
 class TestFiltersConfig:
@@ -30,7 +30,7 @@ class TestFiltersConfig:
                 },
             ],
         }
-        config = FiltersYamlConfig(**valid_config)
+        config = LogFilterConfig(**valid_config)
         assert config.log_format == RatedParserLogFormat.RAW_TEXT
         assert config.log_example == "This is a raw text log example"
         assert len(config.fields) == 2
@@ -44,10 +44,16 @@ class TestFiltersConfig:
             "version": 1,
             "log_format": "raw_text",
             "log_example": {"key": "value"},  # This should be a string for RAW_TEXT
-            "fields": [],
+            "fields": [
+                {
+                    "key": "organization_id",
+                    "value": "organization_id_value",
+                    "field_type": "string",
+                },
+            ],
         }
         with pytest.raises(ValidationError) as exc_info:
-            FiltersYamlConfig(**invalid_config)
+            LogFilterConfig(**invalid_config)
         assert "log_example must be a string when log_format is RAW_TEXT" in str(
             exc_info.value
         )
@@ -73,7 +79,7 @@ class TestFiltersConfig:
                 },
             ],
         }
-        config = FiltersYamlConfig(**valid_json_config)
+        config = LogFilterConfig(**valid_json_config)
         assert config.log_format == RatedParserLogFormat.JSON
         assert config.log_example == {"testing_key": "testing_value"}
 
