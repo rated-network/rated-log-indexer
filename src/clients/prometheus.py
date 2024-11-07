@@ -1,9 +1,11 @@
 import sys
-from typing import Any, Dict, Iterator
+from typing import Any, Dict, Iterator, Optional
 
 import structlog
 from rated_exporter_sdk.providers.prometheus.client import PrometheusClient  # type: ignore
 from rated_exporter_sdk.providers.prometheus.types import PrometheusQueryOptions  # type: ignore
+from rated_exporter_sdk.providers.prometheus.auth import PrometheusAuth  # type: ignore
+from rated_exporter_sdk.providers.prometheus.managed.gcloud_auth import GCPPrometheusAuth  # type: ignore
 
 from src.config.models.inputs.prometheus import PrometheusConfig
 from src.utils.time_conversion import from_milliseconds
@@ -18,7 +20,7 @@ class PrometheusClientWrapper:
         self.config = config
         self.client = PrometheusClient(
             base_url=str(config.base_url),
-            auth=config.auth,
+            auth=self.create_auth(),
             timeout=config.timeout,
             max_retries=config.max_retries,
             retry_backoff_factor=config.retry_backoff_factor,
@@ -26,6 +28,33 @@ class PrometheusClientWrapper:
             pool_maxsize=config.pool_maxsize,
             max_parallel_queries=config.max_parallel_queries,
         )
+
+    def create_auth(self) -> Optional[PrometheusAuth]:
+        """Create the appropriate authentication object based on the configuration."""
+        auth_config = self.config.auth
+        if not auth_config:
+            return None
+        try:
+            if auth_config.username and auth_config.password:
+                return PrometheusAuth(
+                    username=auth_config.username, password=auth_config.password
+                )
+            elif auth_config.token:
+                return PrometheusAuth(token=auth_config.token)
+            elif auth_config.cert_path and auth_config.key_path:
+                return PrometheusAuth(ca_cert=auth_config.cert_path)
+            elif (
+                auth_config.gcloud_service_account_path
+                and auth_config.gcloud_target_principal
+            ):
+                return GCPPrometheusAuth(
+                    service_account_file=auth_config.gcloud_service_account_path,
+                    target_principal=auth_config.gcloud_target_principal,
+                )
+            return None
+        except Exception as e:
+            logger.error(f"Failed to create auth: {str(e)}")
+            return None
 
     def query_metrics(self, start_time: int, end_time: int) -> Iterator[Dict[str, Any]]:
         """Query metrics from Prometheus according to the configuration."""

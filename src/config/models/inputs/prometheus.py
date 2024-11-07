@@ -92,6 +92,8 @@ class PrometheusAuthConfig(BaseModel):
     cert_path: Optional[StrictStr] = None
     key_path: Optional[StrictStr] = None
     verify_ssl: bool = True
+    gcloud_service_account_path: Optional[StrictStr] = None
+    gcloud_target_principal: Optional[StrictStr] = None
 
     @model_validator(mode="after")
     def validate_auth_config(self):
@@ -107,16 +109,36 @@ class PrometheusAuthConfig(BaseModel):
         if self.key_path is not None and self.cert_path is None:
             raise ValueError("Certificate path is required when key path is provided")
 
+        # Check GCloud auth configuration
+        if (
+            self.gcloud_service_account_path is not None
+            and self.gcloud_target_principal is None
+        ):
+            raise ValueError(
+                "Target principal is required when GCloud service account path is provided"
+            )
+        if (
+            self.gcloud_target_principal is not None
+            and self.gcloud_service_account_path is None
+        ):
+            raise ValueError(
+                "GCloud service account path is required when target principal is provided"
+            )
+
         # Check mutually exclusive auth methods
         auth_methods = [
             bool(self.username and self.password),  # Basic auth
             bool(self.token),  # Token auth
             bool(self.cert_path and self.key_path),  # Certificate auth
+            bool(
+                self.gcloud_service_account_path and self.gcloud_target_principal
+            ),  # GCloud auth
         ]
         if sum(auth_methods) > 1:
             raise ValueError(
                 "Only one authentication method can be used at a time: "
-                "basic auth (username/password), token, or certificate"
+                "basic auth (username/password), token, certificate, "
+                "or GCloud service account"
             )
 
         return self

@@ -99,3 +99,16 @@ auth:
   key_path: "/path/to/client.key"
   verify_ssl: false  # Only for testing/development
 ```
+
+4. GCP Managed Prometheus
+```yaml
+prometheus:
+  base_url: "https://monitoring.googleapis.com/v1/projects/[PROJECT_ID]/location/global/prometheus"
+  auth:
+    # Option 1: Service Account Key
+    gcloud_service_account_path: "/path/to/service-account.json"
+    gcloud_target_principal: "prometheus-reader@[PROJECT_ID].iam.gserviceaccount.com"
+
+    # Option 2: Workload Identity (for GKE)
+    assume_identity: "gcloud_workload"
+```

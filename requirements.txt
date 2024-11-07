@@ -22,7 +22,7 @@ rated-parser==1.0.1
 freezegun==1.5.1
 sentry-sdk~=2.14.0
 testcontainers==4.8.2
-rated_exporter_sdk==0.1.1
+rated_exporter_sdk==1.0.2
 requests>=2.31.0,<2.32.0
 responses==0.25.3
 docker>=6.1.0
@@ -31,3 +31,10 @@ types-docker==7.0.0.20240413
 pydantic_core~=2.20.1
 python-dotenv~=1.0.1
 prometheus_client~=0.20.0
+
+#REMOVE THIS:
+google==3.0.0
+google-auth==2.35.0
+google-auth-httplib2==0.2.0
+google-api-python-client==2.151.0
+oauth2client==4.1.3
