@@ -45,21 +45,19 @@ To set up the rated-log-indexer, follow these steps:
 The `rated-config.yaml` file is structured into four main sections:
 
 1. **inputs**: Define your data sources (e.g., CloudWatch, Datadog).
-2. **output**: Specify the output configuration (typically the Rated slaOS API).
-3. **offset**: Configure how to track the last processed data point.
-4. **secrets**: Set up secrets management (optional, but recommended for production).
+1. **offset**: Configure how to track the last processed data point (per input).
+1. **output**: Specify the output configuration (typically the Rated slaOS API).
+1. **secrets**: Set up secrets management (optional, but recommended for production).
 
 Refer to the `templates` folder for sample configurations of each section.
 
-## Local development
+## Development
 
-To run the indexer:
+`make` to get an overview of supported Make commands.
 
-```
-make run
-```
+`make run` to start the indexer using your `rated-config.yaml` configuration.
 
-This command will start the indexer using your `rated-config.yaml` configuration.
+`make test` to run the automated tests. This will automatically create a virtualenv.
 
 ## Supported Integrations
 
