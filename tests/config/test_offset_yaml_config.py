@@ -152,7 +152,7 @@ def test_slaos_config_with_customer_id(mock_load_config, valid_config_dict):
             "ingestion_url": "https://your_ingestion_url.com/v1/ingest",
             "datastream_filter": {
                 "key": "datastream-key",
-                "customer_id": "secret:customer_id",
+                "organization_id": "hash:customer_id",
             },
         },
     }
@@ -160,4 +160,4 @@ def test_slaos_config_with_customer_id(mock_load_config, valid_config_dict):
     mock_load_config.return_value = config
 
     assert config.inputs[0].offset.type == "slaos"
-    assert len(config.inputs[0].offset.slaos.datastream_filter.customer_id) == 64
+    assert len(config.inputs[0].offset.slaos.datastream_filter.organization_id) == 64

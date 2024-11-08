@@ -56,5 +56,5 @@ class RatedAPIOffsetTracker(OffsetTracker):
 
     def get_offset_from_api(self) -> datetime | None:
         key = self.config.slaos.datastream_filter.key  # type: ignore[union-attr]
-        customer_id = self.config.slaos.datastream_filter.customer_id  # type: ignore[union-attr]
+        customer_id = self.config.slaos.datastream_filter.organization_id  # type: ignore[union-attr]
         return self.client.get_latest_ingest_timestamp(key, customer_id)

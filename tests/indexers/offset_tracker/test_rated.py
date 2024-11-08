@@ -18,8 +18,8 @@ INGESTION_ID = "some-uuid"
 INGESTION_KEY = "secret-key"
 INGESTION_URL = "http://localhost:8000/v1/ingest"
 DATASTREAM_KEY = "datastream-key"
-CUSTOMER_ID = "secret:test-customer-123"
-HASHED_CUSTOMER_ID = sha256(CUSTOMER_ID[7:].encode()).hexdigest()
+CUSTOMER_ID = "hash:test-customer-123"
+HASHED_CUSTOMER_ID = sha256(CUSTOMER_ID[5:].encode()).hexdigest()
 
 
 @pytest.fixture
@@ -47,7 +47,7 @@ def yaml_config_with_customer():
         ingestion_key=INGESTION_KEY,
         ingestion_url=INGESTION_URL,
         datastream_filter=OffsetSlaosYamlFilter(
-            key=DATASTREAM_KEY, customer_id=CUSTOMER_ID
+            key=DATASTREAM_KEY, organization_id=CUSTOMER_ID
         ),
     )
     config = OffsetYamlConfig(
@@ -77,7 +77,7 @@ def test_rated_api_offset_tracker_initialise_offset_none_with_customer(
         tracker = rated.RatedAPIOffsetTracker(yaml_config_with_customer, "foo")
 
         assert tracker.get_current_offset() == 3456
-        assert tracker.config.slaos.datastream_filter.customer_id == HASHED_CUSTOMER_ID  # type: ignore[union-attr]
+        assert tracker.config.slaos.datastream_filter.organization_id == HASHED_CUSTOMER_ID  # type: ignore[union-attr]
 
 
 def test_rated_api_offset_tracker_initialise_offset_some(yaml_config: OffsetYamlConfig):
