@@ -15,15 +15,15 @@ from datetime import datetime
 
 class OffsetSlaosYamlFilter(BaseModel):
     key: StrictStr
-    customer_id: Optional[StrictStr] = None
+    organization_id: Optional[StrictStr] = None
 
-    @field_validator("customer_id")
+    @field_validator("organization_id")
     def validate_and_hash_customer_id(cls, v: Optional[str]) -> Optional[str]:
         if v is None or not v.strip():
             return None
 
-        if v.startswith("secret:"):
-            return sha256(str(v[7:]).encode()).hexdigest()
+        if v.startswith("hash:"):
+            return sha256(str(v[5:]).encode()).hexdigest()
         return v
 
 
