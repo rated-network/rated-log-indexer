@@ -1,5 +1,6 @@
 container_tag ?= rated-log-indexer-indexer
 container_name ?= rated_log_indexer
+instance ?= 1
 redis_name ?= redis
 network_name ?= rated_network
 pip := .venv/bin/pip
@@ -25,7 +26,7 @@ help: ## Show this help
 .PHONY: clean
 clean: ## Clean up existing containers and network
 	@echo "Cleaning up existing containers..."
-	@docker stop $(container_name) 2>/dev/null || true
+	@docker stop $(container_name)_$(instance) 2>/dev/null || true
 	@docker stop $(redis_name) 2>/dev/null || true
 	@docker network rm $(network_name) 2>/dev/null || true
 	@echo "Cleanup complete"
@@ -34,9 +35,11 @@ clean: ## Clean up existing containers and network
 start: ## Start everything fresh
 	@echo "Building application..."
 	@docker build -t $(container_tag) .
+	@echo "Creating network..."
+	@docker network create $(network_name) 2>/dev/null || true
 	@echo "Starting application..."
 	@docker run -d --rm \
-		--name $(container_name) \
+		--name $(container_name)_$(instance) \
 		--network $(network_name) \
 		$(container_tag)
 	@echo "Containers started. Use 'make logs' to see output"
@@ -47,7 +50,7 @@ build:  ## Build the Docker container
 
 .PHONY: up
 up: ## Start services
-	@docker run -d --rm --name $(container_name) $(container_tag)
+	@docker run -d --rm --name $(container_name)_$(instance) $(container_tag)
 
 .PHONY: down
 down: clean ## Alias for `clean`
@@ -58,7 +61,7 @@ remove: clean ## Stop containers and remove images
 
 .PHONY: logs
 logs: ## Output container logs
-	@docker logs --follow --tail 50 $(container_name)
+	@docker logs --follow --tail 50 $(container_name)_$(instance)
 
 ##@ 🐍  Local dev helpers
 $(pip): requirements.txt
