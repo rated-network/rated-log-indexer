@@ -93,3 +93,65 @@ def test_slaos_client_get_latest_ingest_timestamp_unknown_ingest_params(
 
     with pytest.raises(httpx.HTTPStatusError):
         client.get_latest_ingest_timestamp("datastream-key")
+
+
+def test_slaos_client_get_latest_ingest_timestamp_different_customers(
+    httpx_mock: HTTPXMock, slaos_client_config: RatedOutputConfig
+):
+    # Mock response for customer1
+    httpx_mock.add_response(
+        url=httpx.URL(
+            f"{INGESTION_URL}/{INGESTION_ID}/{INGESTION_KEY}/indexed-slis",
+            params={"limit": "1", "key": "datastream-key", "customer_id": "customer1"},
+        ),
+        method="GET",
+        json=[
+            {
+                "customer_id": "customer1",
+                "key": "datastream-key",
+                "vendor_id": "your-org-id",
+                "timestamp": "2024-09-09T22:00:23+00:00",
+                "report_timestamp": "2024-09-09T22:58:34.739860+00:00",
+                "doc_type": "sli",
+                "ingestion_timestamp": "2024-09-09T22:58:35.513191+00:00",
+                "avg_uptime": 1.0,
+                "hour": 33082,
+            }
+        ],
+    )
+
+    # Mock response for customer2
+    httpx_mock.add_response(
+        url=httpx.URL(
+            f"{INGESTION_URL}/{INGESTION_ID}/{INGESTION_KEY}/indexed-slis",
+            params={"limit": "1", "key": "datastream-key", "customer_id": "customer2"},
+        ),
+        method="GET",
+        json=[
+            {
+                "customer_id": "customer2",
+                "key": "datastream-key",
+                "vendor_id": "your-org-id",
+                "timestamp": "2024-09-08T15:30:00+00:00",  # Different timestamp
+                "report_timestamp": "2024-09-08T15:58:34.739860+00:00",
+                "doc_type": "sli",
+                "ingestion_timestamp": "2024-09-08T15:58:35.513191+00:00",
+                "avg_uptime": 0.95,
+                "hour": 33075,
+            }
+        ],
+    )
+
+    client = slaos.SlaosClient(slaos_client_config)
+
+    # Test customer1
+    timestamp1 = client.get_latest_ingest_timestamp(
+        "datastream-key", customer_id="customer1"
+    )
+    assert timestamp1 == datetime.fromisoformat("2024-09-09T22:00:23+00:00")
+
+    # Test customer2
+    timestamp2 = client.get_latest_ingest_timestamp(
+        "datastream-key", customer_id="customer2"
+    )
+    assert timestamp2 == datetime.fromisoformat("2024-09-08T15:30:00+00:00")

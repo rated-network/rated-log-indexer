@@ -1,4 +1,5 @@
 from enum import Enum
+from hashlib import sha256
 
 from pydantic import (
     BaseModel,
@@ -10,6 +11,20 @@ from pydantic import (
 )
 from typing import Optional
 from datetime import datetime
+
+
+class OffsetSlaosYamlFilter(BaseModel):
+    key: StrictStr
+    customer_id: Optional[StrictStr] = None
+
+    @field_validator("customer_id")
+    def validate_and_hash_customer_id(cls, v: Optional[str]) -> Optional[str]:
+        if v is None or not v.strip():
+            return None
+
+        if v.startswith("secret:"):
+            return sha256(str(v[7:]).encode()).hexdigest()
+        return v
 
 
 class OffsetPostgresYamlConfig(BaseModel):
@@ -32,7 +47,7 @@ class OffsetSlaosYamlConfig(BaseModel):
     ingestion_id: StrictStr
     ingestion_key: StrictStr
     ingestion_url: StrictStr
-    datastream_key: StrictStr
+    datastream_filter: OffsetSlaosYamlFilter
 
 
 class StartFromTypes(str, Enum):

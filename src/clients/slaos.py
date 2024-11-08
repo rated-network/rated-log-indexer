@@ -1,4 +1,6 @@
 from datetime import datetime
+from typing import Optional
+
 import httpx
 import stamina
 from pydantic import BaseModel
@@ -19,12 +21,18 @@ class SlaosClient:
 
         return f"{base_url}/{ingestion_id}/{ingestion_key}"
 
-    def get_latest_ingest_timestamp(self, datastream_key: str) -> datetime | None:
+    def get_latest_ingest_timestamp(
+        self, datastream_key: str, customer_id: Optional[str] = None
+    ) -> datetime | None:
         url = f"{self.full_ingest_url}/indexed-slis"
         params = {
             "key": datastream_key,
             "limit": "1",
         }
+
+        if customer_id is not None:
+            params["customer_id"] = customer_id
+
         headers = {
             "Content-Type": "application/json",
         }

@@ -44,7 +44,9 @@ def test_get_offset_tracker_with_duplicates(mock_load_config, valid_config_dict)
         "ingestion_id": "some-uuid",
         "ingestion_key": "secret-key",
         "ingestion_url": "http://localhost:8000/v1/ingest",
-        "datastream_key": "datastream-key",
+        "datastream_filter": {
+            "key": "datastream-key",
+        },
     }
     config = RatedIndexerYamlConfig(**config_dict)
     mock_load_config.return_value = config
@@ -135,3 +137,27 @@ def test_get_offset_tracker_different_prefixes(mock_load_config, valid_config_di
     assert isinstance(tracker2, PostgresOffsetTracker)
     assert tracker2.slaos_key == "prefix2"
     assert start_from2 == 123456789
+
+
+@patch.object(ConfigurationManager, "load_config")
+def test_slaos_config_with_customer_id(mock_load_config, valid_config_dict):
+    config_dict = deepcopy(valid_config_dict)
+    config_dict["inputs"][0]["offset"] = {
+        "type": "slaos",
+        "start_from": 123456789,
+        "start_from_type": "bigint",
+        "slaos": {
+            "ingestion_id": "ingestion_id",
+            "ingestion_key": "ingestion_key",
+            "ingestion_url": "https://your_ingestion_url.com/v1/ingest",
+            "datastream_filter": {
+                "key": "datastream-key",
+                "customer_id": "secret:customer_id",
+            },
+        },
+    }
+    config = RatedIndexerYamlConfig(**config_dict)
+    mock_load_config.return_value = config
+
+    assert config.inputs[0].offset.type == "slaos"
+    assert len(config.inputs[0].offset.slaos.datastream_filter.customer_id) == 64
