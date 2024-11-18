@@ -55,3 +55,6 @@ secrets/
 tmp_prometheus_config/
 .venv/
 venv/
+
+# IDE
+.idea

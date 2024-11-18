@@ -6,7 +6,7 @@ import structlog
 from bytewax.inputs import StatefulSourcePartition, FixedPartitionedSource
 from pydantic import BaseModel, PositiveInt, StrictStr, StrictInt
 
-from src.config.manager import ConfigurationManager
+from src.config import get_config
 from src.indexers.offset_tracker.factory import get_offset_tracker
 from src.utils.time_conversion import from_milliseconds, to_milliseconds
 
@@ -33,7 +33,7 @@ class RatedPartition(StatefulSourcePartition[TimeRange, None]):
     def __init__(self, slaos_key: StrictStr, config_index: StrictInt) -> None:
         self._next_awake = datetime.now(timezone.utc)
 
-        self.config = ConfigurationManager().load_config().inputs
+        self.config = get_config().inputs
 
         self.offset_tracker, self.config_start_from = get_offset_tracker(
             slaos_key, config_index

@@ -1,15 +1,19 @@
+import base64
 import sys
-from typing import List, Optional
+from functools import lru_cache
+from pathlib import Path
+from typing import List, Optional, cast
 import structlog
 import yaml
 import os
 
-from src.config.models.sentry import SentryYamlConfig
-from src.config.secrets.factory import SecretManagerFactory
-from src.config.models.inputs.input import InputYamlConfig
-from src.config.models.output import OutputYamlConfig
-from src.config.models.secrets import SecretsYamlConfig
+from .models.sentry import SentryYamlConfig
+from .secrets.factory import SecretManagerFactory
+from .models.inputs.input import InputYamlConfig
+from .models.output import OutputYamlConfig
+from .models.secrets import SecretsYamlConfig
 from pydantic import BaseModel, ValidationError, model_validator
+import abc
 
 logger = structlog.get_logger(__name__)
 
@@ -44,21 +48,17 @@ class RatedIndexerYamlConfig(BaseModel):
         return values
 
 
-class ConfigurationManager:
-    @staticmethod
-    def load_config() -> RatedIndexerYamlConfig:
-        config_path = os.path.join(os.getcwd(), "rated-config.yaml")
-        if not os.path.exists(config_path):
-            raise FileNotFoundError(f"Configuration file not found: {config_path}")
+class ConfigurationManager(abc.ABC):
+    @abc.abstractmethod
+    def _do_load_raw_config(self) -> dict: ...
 
+    def load_config(self) -> RatedIndexerYamlConfig:
+        config_data = self._do_load_raw_config()
         try:
-            with open(config_path, "r") as file:
-                config_data = yaml.safe_load(file)
-
             config = RatedIndexerYamlConfig(**config_data)
 
             if config.secrets.use_secrets_manager:
-                ConfigurationManager._resolve_secrets(config)
+                self._resolve_secrets(config)
 
             return config
 
@@ -97,3 +97,46 @@ class ConfigurationManager:
                 "An unexpected error occurred while resolving secrets:", exc_info=e
             )
             sys.exit(1)
+
+
+class Base64EncodedConfig(ConfigurationManager):
+    def __init__(self, config_value: str):
+        self._config_value = config_value
+
+    def _do_load_raw_config(self) -> dict:
+        return yaml.safe_load(base64.b64decode(self._config_value))
+
+
+class FileConfigurationManager(ConfigurationManager):
+    def __init__(self, config_path: Path):
+        self._config_path = config_path
+
+    def _do_load_raw_config(self) -> dict:
+        if not self._config_path.exists():
+            raise FileNotFoundError(
+                f"Configuration file not found: {self._config_path}"
+            )
+        try:
+            with self._config_path.open("r") as file:
+                return yaml.safe_load(file)
+
+        except Exception as e:
+            logger.error(
+                "An unexpected error occurred while loading the configuration:",
+                exc_info=e,
+            )
+            sys.exit(1)
+
+
+def get_config_manager(
+    env: dict[str, str] = cast(dict[str, str], os.environ)
+) -> ConfigurationManager:
+    if base64_config := env.get("BASE64_CONFIG"):
+        return Base64EncodedConfig(base64_config)
+    config_path = Path(env.get("CONFIG_FILE", "rated-config.yaml"))
+    return FileConfigurationManager(config_path)
+
+
+@lru_cache
+def get_config() -> RatedIndexerYamlConfig:
+    return get_config_manager().load_config()

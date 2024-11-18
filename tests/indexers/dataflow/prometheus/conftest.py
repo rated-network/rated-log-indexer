@@ -77,13 +77,22 @@ def fake_app_url(fake_app_container: DockerContainer):
 
 
 @pytest.fixture(scope="session")
+def root_path() -> Path:
+    current_dir = Path(__file__).parent
+    while current_dir.name != "tests":
+        current_dir = current_dir.parent
+
+    return current_dir.parent
+
+
+@pytest.fixture(scope="session")
 def fake_app_container(
-    docker_client: docker.DockerClient, docker_network: Network
+    docker_client: docker.DockerClient, docker_network: Network, root_path: Path
 ) -> Generator[DockerContainer, None, None]:
 
     app_tag = "fake-app:latest"
     docker_client.images.build(
-        path="tests/indexers/dataflow/prometheus",
+        path=(root_path / "tests/indexers/dataflow/prometheus").as_posix(),
         dockerfile="Dockerfile.fake_app",
         tag=app_tag,
         rm=True,
