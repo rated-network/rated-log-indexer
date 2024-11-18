@@ -3,7 +3,7 @@ import pytest
 from unittest.mock import patch
 
 from src.config.models.inputs.input import IntegrationTypes
-from src.config.manager import ConfigurationManager, RatedIndexerYamlConfig
+from src.config.manager import RatedIndexerYamlConfig
 from src.config.models.secrets import SecretProvider
 from src.config.secrets.aws_secrets_manager import AwsSecretManager
 
@@ -86,25 +86,21 @@ def mock_aws_secrets_manager():
 
 
 def test_get_config_with_secrets(valid_config_with_secrets, mock_aws_secrets_manager):
-    with patch.object(ConfigurationManager, "load_config") as mock_load_config:
-        config = RatedIndexerYamlConfig(**valid_config_with_secrets)
-        secret_manager = AwsSecretManager(config.secrets.aws)
-        secret_manager.resolve_secrets(config)
-        mock_load_config.return_value = config
+    result_config = RatedIndexerYamlConfig(**valid_config_with_secrets)
+    secret_manager = AwsSecretManager(result_config.secrets.aws)
+    secret_manager.resolve_secrets(result_config)
 
-        result_config = ConfigurationManager.load_config()
+    assert isinstance(result_config, RatedIndexerYamlConfig)
+    assert result_config.secrets.use_secrets_manager is True
+    assert result_config.secrets.provider == SecretProvider.AWS
+    assert result_config.inputs[0].integration == IntegrationTypes.DATADOG
+    assert result_config.inputs[0].datadog.app_key == "app_key_value_raw"
+    assert result_config.inputs[0].datadog.api_key == "resolved_datadog_api_key"
+    assert result_config.inputs[0].slaos_key == "resolved_slaos_key"
+    assert result_config.output.rated.ingestion_key == "resolved_ingestion_key"
 
-        assert isinstance(result_config, RatedIndexerYamlConfig)
-        assert result_config.secrets.use_secrets_manager is True
-        assert result_config.secrets.provider == SecretProvider.AWS
-        assert result_config.inputs[0].integration == IntegrationTypes.DATADOG
-        assert result_config.inputs[0].datadog.app_key == "app_key_value_raw"
-        assert result_config.inputs[0].datadog.api_key == "resolved_datadog_api_key"
-        assert result_config.inputs[0].slaos_key == "resolved_slaos_key"
-        assert result_config.output.rated.ingestion_key == "resolved_ingestion_key"
-
-        assert not result_config.inputs[0].datadog.api_key.startswith("secret:")
-        assert not result_config.output.rated.ingestion_key.startswith("secret:")
+    assert not result_config.inputs[0].datadog.api_key.startswith("secret:")
+    assert not result_config.output.rated.ingestion_key.startswith("secret:")
 
 
 def test_secret_manager_resolve_secrets(

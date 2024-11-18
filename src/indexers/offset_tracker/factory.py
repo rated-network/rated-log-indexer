@@ -1,7 +1,7 @@
 from typing import Tuple
 from collections import defaultdict
 
-from src.config.manager import ConfigurationManager
+from src.config import get_config, RatedIndexerYamlConfig
 from src.indexers.offset_tracker.base import OffsetTracker
 from src.indexers.offset_tracker.postgres import PostgresOffsetTracker
 from src.indexers.offset_tracker.rated import RatedAPIOffsetTracker
@@ -9,7 +9,7 @@ from src.indexers.offset_tracker.redis import RedisOffsetTracker
 
 
 def get_offset_tracker(
-    slaos_key: str, config_index: int = 0
+    slaos_key: str, config_index: int = 0, config: RatedIndexerYamlConfig | None = None
 ) -> Tuple[OffsetTracker, int]:
     """
     Retrieves the appropriate OffsetTracker and start_from value for a given slaOS key and configuration index.
@@ -47,10 +47,10 @@ def get_offset_tracker(
         # Or for a specific configuration when multiple exist:
         offset_tracker, start_from = get_offset_tracker("my_integration", config_index=1)
     """
-    config = ConfigurationManager.load_config().inputs
+    config = config or get_config()
 
     grouped_configs = defaultdict(list)
-    for input_config in config:
+    for input_config in config.inputs:
         grouped_configs[input_config.slaos_key].append(input_config)
 
     matching_configs = grouped_configs.get(slaos_key, [])
