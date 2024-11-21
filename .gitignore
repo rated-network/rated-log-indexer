@@ -49,6 +49,7 @@ coverage.xml
 # Sphinx documentation
 docs/_build/
 
+config/rated-config.yaml
 rated-config.yaml
 
 secrets/

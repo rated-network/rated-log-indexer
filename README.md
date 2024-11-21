@@ -107,7 +107,7 @@ docker pull ratedlabs/rated-log-indexer:latest
 ```bash
 docker run \
   --name rated-indexer \
-  --volume "$(pwd)"/rated-config.yaml:/indexer/rated-config.yaml \
+  --volume "$(pwd)"/config/rated-config.yaml:/indexer/config/rated-config.yaml \
   --restart unless-stopped \
   ratedlabs/rated-log-indexer
 ```
@@ -169,7 +169,7 @@ If you're running behind a corporate proxy or have strict firewall policies, you
 
 ## Configuration
 
-The `rated-config.yaml` file is structured into four main sections:
+The `rated-config.yaml` file located in the [`config`](config) directory is structured into four main sections:
 
 1. **inputs**: Define your data sources:
    - CloudWatch

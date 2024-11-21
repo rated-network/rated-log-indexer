@@ -133,7 +133,22 @@ def get_config_manager(
 ) -> ConfigurationManager:
     if base64_config := env.get("BASE64_CONFIG"):
         return Base64EncodedConfig(base64_config)
-    config_path = Path(env.get("CONFIG_FILE", "rated-config.yaml"))
+
+    config_file = env.get("CONFIG_FILE")
+    if config_file:
+        return FileConfigurationManager(Path(config_file))
+
+    config_path = Path("config/rated-config.yaml")
+    if config_path.exists():
+        return FileConfigurationManager(config_path)
+
+    legacy_path = Path("rated-config.yaml")
+    if legacy_path.exists():
+        logger.warning(
+            "Using config from root directory. This is deprecated - please move config to /indexer/config/ directory"
+        )
+        return FileConfigurationManager(legacy_path)
+
     return FileConfigurationManager(config_path)
 
 

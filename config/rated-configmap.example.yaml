@@ -74,8 +74,7 @@ spec:
         image: ratedlabs/rated-log-indexer:latest
         volumeMounts:
         - name: config-volume
-          mountPath: /indexer/rated-config.yaml
-          subPath: rated-config.yaml
+          mountPath: /indexer/config
       volumes:
       - name: config-volume
         configMap:
