@@ -37,7 +37,9 @@ inputs:
         ingestion_id: "xxxxx-xx-xx-xx-xxxxx"
         ingestion_key: "xxxxx"
         ingestion_url: "https://api.rated.co/v1/ingest"
-        datastream_key: rated_example
+        datastream_filter:
+          key: rated_example
+          organization_id: "example_org"
 
 output:
   type: "rated"

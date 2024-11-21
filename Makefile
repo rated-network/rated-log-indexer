@@ -37,6 +37,11 @@ start: ## Start everything fresh
 	@docker build -t $(container_tag) .
 	@echo "Creating network..."
 	@docker network create $(network_name) 2>/dev/null || true
+	@echo "Starting Redis..."
+	@docker run -d --rm \
+		--name $(redis_name) \
+		--network $(network_name) \
+		redis:alpine
 	@echo "Starting application..."
 	@docker run -d --rm \
 		--name $(container_name)_$(instance) \
