@@ -1,0 +1,82 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: indexer-config
+data:
+  rated-config.yaml: |
+    inputs:
+      - integration: cloudwatch
+        slaos_key: rated_example
+        type: logs
+        cloudwatch:
+          region: us-east-1
+          aws_access_key_id: AKIAXXXXXXX
+          aws_secret_access_key: X/XXXX+XXXXX
+          logs_config:
+            log_group_name: "/aws/apprunner/prod-rated-api/xxxxxxxxx/application"
+            filter_pattern: '{ ($.event = "request_finished" || $.event = "request_error") }'
+        filters:
+          version: 1
+          log_format: json_dict
+          log_example: { }
+          fields:
+            - key: "status_code"
+              field_type: "integer"
+              path: "status_code"
+            - key: "organization_id"
+              field_type: "string"
+              path: "org.id"
+            - key: "path"
+              field_type: "string"
+              path: "request_route_name"
+            - key: "took"
+              field_type: "float"
+              path: "took"
+        offset:
+          type: slaos
+          override_start_from: false
+          start_from: 1724803200000
+          start_from_type: bigint
+          slaos:
+            ingestion_id: "xxxxx-xx-xx-xx-xxxxx"
+            ingestion_key: "xxxxx"
+            ingestion_url: "https://api.rated.co/v1/ingest"
+            datastream_filter:
+              key: rated_example
+              organization_id: "example_org"
+
+    output:
+      type: "rated"
+      rated:
+          ingestion_id: "xxxxx-xx-xx-xx-xxxxx"
+          ingestion_key: "xxxxx"
+          ingestion_url: "https://api.rated.co/v1/ingest"
+
+    secrets:
+      use_secrets_manager: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rated-log-indexer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rated-log-indexer
+  template:
+    metadata:
+      labels:
+        app: rated-log-indexer
+    spec:
+      containers:
+      - name: indexer
+        image: ratedlabs/rated-log-indexer:latest
+        volumeMounts:
+        - name: config-volume
+          mountPath: /indexer/rated-config.yaml
+          subPath: rated-config.yaml
+      volumes:
+      - name: config-volume
+        configMap:
+          name: indexer-config
