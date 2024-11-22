@@ -36,7 +36,9 @@ inputs:
     queries:
       # Request Rate
       - query: 'rate(http_requests_total{job="api"}[5m])'
-        step: "1m"
+        step:
+          value: 30
+          unit: "s"
         slaos_metric_name: "request_rate"
         organization_identifier: "customer_id"
 ```
