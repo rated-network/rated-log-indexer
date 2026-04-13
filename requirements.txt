@@ -1,7 +1,7 @@
 ruff==0.3.7
 mypy==1.9.0
 black==24.4.0
-pytest==8.1.1
+pytest==9.0.3
 pre-commit==3.7.0
 bytewax==0.20.0
 httpx==0.27.0
